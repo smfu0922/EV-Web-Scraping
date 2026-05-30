@@ -77,9 +77,9 @@ def load_and_process():
 
     # 1.3 Monthly insights — theme distribution + risk/opportunity
     monthly_insights_db = {}
-    the_point_keywords = ['the point', '新地', '新鴻基', 'shkp', '新城市', 'apm', 'wtc', 'ipm']
-    shkp_locations = ['沙田', '元朗', '將軍澳', '葵芳', '屯門', '大埔', '上水', '粉嶺']
-    competitor_ops = ['Sinopec', 'Shell Recharge', 'Cornerstone', 'CLPe', 'Smart Charge', 'Flash Charge', '3 EV Station']
+    the_point_keywords = ['the point', '新地', '新鴻基', 'shkp', '新城市', 'apm', 'wtc', 'ipm', '新都會', 'apm']
+    shkp_locations = ['沙田', '元朗', '將軍澳', '葵芳', '屯門', '大埔', '上水', '粉嶺', '荃灣']
+    competitor_ops = ['Sinopec', 'Shell Recharge', 'Cornerstone', 'CLPe', 'Smart Charge', 'Flash Charge', '3 EV Station', 'Tesla']
     
     for i, m in enumerate(months_list):
         m_data = df[df['month_str'] == m]
@@ -94,74 +94,106 @@ def load_and_process():
         else:
             vol_badge = "基準月"
 
-        # Theme distribution for bar chart
+        # Theme distribution
         theme_dist = m_data['theme'].value_counts().to_dict()
         theme_dist = {k: int(v) for k, v in theme_dist.items()}
         
-        # Detect risks
+        # Risks — detect any negative signal
         risks = []
-        # Risk: competitor new stations
-        comp_stations = m_data[(m_data['theme'] == '站點情報') & (m_data['operator'].isin(competitor_ops))]
-        for _, r in comp_stations.iterrows():
-            risks.append(f"🔴 競爭對手【{r['operator']}】{r['location']}新站消息")
-        # Risk: service problems at The Point
-        tp_issues = m_data[(m_data['theme'] == '服務問題') & (m_data['operator'].str.contains('Point|新地', case=False, na=False))]
-        for _, r in tp_issues.iterrows():
-            risks.append(f"🔴 The Point服務問題：{r['summary'][:40]}")
-        # Risk: occupancy at SHKP locations
-        occ_shkp = m_data[(m_data['theme'] == '車位佔用') & (m_data['location'].str.join('|').str.contains('|'.join(shkp_locations), case=False, na=False))]
-        # Actually let me use a simpler approach
-        occ_shkp_rows = m_data[(m_data['theme'] == '車位佔用')]
-        for _, r in occ_shkp_rows.iterrows():
+        
+        # Risk 1: Service complaints (all, not just The Point)
+        for _, r in m_data[m_data['theme'] == '服務問題'].iterrows():
+            op = r.get('operator', '')
             loc = str(r.get('location', ''))
-            if any(s in loc for s in shkp_locations):
-                risks.append(f"🔴 {loc}充電位被佔用問題")
-        # Risk: competitor pricing
-        comp_promo = m_data[(m_data['theme'] == '價格動態') & (m_data['operator'].isin(competitor_ops))]
-        for _, r in comp_promo.iterrows():
-            risks.append(f"🔴 對手【{r['operator']}】推出{r.get('promo_val', '優惠')[:30]}")
-        # Risk: general service complaints (top 2 by engagement)
-        service_issues = m_data[(m_data['theme'] == '服務問題')]
-        for _, r in service_issues.iterrows():
-            op = r.get('operator', 'Unknown')
-            if op not in ['Unknown', '', 'The Point']:
-                risks.append(f"🔴 {op}服務問題：{r['summary'][:40]}")
-
-        # Detect opportunities
+            label = op if op and op != 'Unknown' else (loc if loc and loc != 'Unknown' else '充電站')
+            risks.append(f"🔴 {label}服務問題：{str(r.get('summary',''))[:45]}")
+        
+        # Risk 2: Occupancy issues
+        for _, r in m_data[m_data['theme'] == '車位佔用'].iterrows():
+            loc = str(r.get('location', ''))
+            label = loc if loc and loc != 'Unknown' else '有停車場'
+            risks.append(f"🔴 {label}充電位被佔用")
+        
+        # Risk 3: Competitor activity
+        for _, r in m_data[(m_data['theme'] == '站點情報') & (m_data['operator'].isin(competitor_ops))].iterrows():
+            risks.append(f"🔴 競爭對手【{r['operator']}】{r['location']}新站")
+        for _, r in m_data[(m_data['theme'] == '價格動態') & (m_data['operator'].isin(competitor_ops))].iterrows():
+            promo = str(r.get('promo_val', '')).strip()
+            if promo and promo != 'None':
+                risks.append(f"🔴 對手【{r['operator']}】推出{promo[:30]}")
+        
+        # Risk 4: Negative pricing sentiment
+        for _, r in m_data[(m_data['theme'] == '價格動態') & (m_data['sentiment'] == 'Negative')].iterrows():
+            risks.append(f"🔴 車主對收費不滿：{str(r.get('summary',''))[:40]}")
+        
+        # Opportunities — detect any positive signal
         opportunities = []
-        # Opportunity: SHKP-adjacent new stations
-        shkp_stations = m_data[(m_data['theme'] == '站點情報')]
-        for _, r in shkp_stations.iterrows():
+        
+        # Opp 1: New stations (any operator)
+        for _, r in m_data[m_data['theme'] == '站點情報'].iterrows():
             loc = str(r.get('location', ''))
-            if any(s in loc for s in shkp_locations):
-                opportunities.append(f"🟢 {loc}新充電設施 — The Point可考慮進駐")
-        # Opportunity: The Point promos
-        tp_promo = m_data[(m_data['operator'].str.contains('Point', case=False, na=False)) & (m_data['sentiment'] == 'Positive')]
-        for _, r in tp_promo.iterrows():
-            opportunities.append(f"🟢 The Point正面反響：{r['summary'][:40]}")
-        # Opportunity: market gaps (charging questions about specific areas)
-        questions = m_data[m_data['theme'] == '充電疑問']
-        for _, r in questions.iterrows():
+            op = r.get('operator', '')
+            if op and op != 'Unknown':
+                opportunities.append(f"🟢 {loc}新站開業（{op}）— 關注市場變化")
+            else:
+                opportunities.append(f"🟢 {loc}新充電設施啟用")
+        
+        # Opp 2: The Point related content
+        tp_rows = m_data[m_data['operator'].str.contains('Point', case=False, na=False)]
+        if len(tp_rows) > 0:
+            pos = tp_rows[tp_rows['sentiment'] == 'Positive']
+            neg = tp_rows[tp_rows['sentiment'] == 'Negative']
+            if len(pos) > len(neg):
+                opportunities.append(f"🟢 The Point本月正面評價居多（{len(pos)}好評 vs {len(neg)}負評）")
+            elif len(neg) > 0:
+                risks.append(f"🔴 The Point本月{len(neg)}條負面反饋")
+        
+        # Opp 3: Market demand signals (charging questions with location)
+        for _, r in m_data[(m_data['theme'] == '充電疑問')].iterrows():
             loc = str(r.get('location', ''))
-            if loc and loc != 'Unknown' and any(s in loc for s in shkp_locations):
-                opportunities.append(f"🟢 市場需求：{loc}車主問充電位置 — The Point有機會填補")
-        # Opportunity: positive sentiment for The Point
-        tp_positive = m_data[(m_data['operator'].str.contains('Point', case=False, na=False)) & (m_data['sentiment'] == 'Positive')]
-        if len(tp_positive) > 0 and len(opportunities) < 2:
-            opp_text = f"🟢 The Point本月好評{len(tp_positive)}條，會員滿意度良好"
-            if opp_text not in [o[:len(opp_text)] for o in opportunities]:
-                opportunities.append(opp_text)
+            if loc and loc != 'Unknown':
+                if any(s in loc for s in shkp_locations):
+                    opportunities.append(f"🟢 {loc}車主需求活躍 — The Point可考慮加強布局")
+        
+        # Opp 4: Positive sentiment surge
+        pos_count = len(m_data[m_data['sentiment'] == 'Positive'])
+        neg_count = len(m_data[m_data['sentiment'] == 'Negative'])
+        if pos_count > neg_count * 1.5 and pos_count >= 3:
+            opportunities.append(f"🟢 本月車主情緒正面（{pos_count}好評 vs {neg_count}負評）")
+        elif neg_count > pos_count * 1.5 and neg_count >= 3:
+            risks.append(f"🔴 本月負評比例偏高（{neg_count}負評 vs {pos_count}好評）")
+        
+        # New operator detected
+        if prev_vol > 0:
+            ops_cur = set(m_data['operator'].unique()) - {'Unknown', ''}
+            ops_prev = set(prev_m_data['operator'].unique()) - {'Unknown', ''}
+            new_ops = ops_cur - ops_prev
+            for op in list(new_ops)[:2]:
+                opportunities.append(f"🟢 【{op}】本月首度在社群出現")
 
-        # Limit to top 3 each
-        risks = risks[:3]
-        opportunities = opportunities[:3]
+        # De-duplicate
+        seen = set()
+        risks_uniq = []
+        for r in risks:
+            key = r[:40]
+            if key not in seen:
+                seen.add(key)
+                risks_uniq.append(r)
+        
+        seen = set()
+        opps_uniq = []
+        for o in opportunities:
+            key = o[:40]
+            if key not in seen:
+                seen.add(key)
+                opps_uniq.append(o)
 
         monthly_insights_db[m] = {
             "volume": cur_vol,
             "volume_badge": vol_badge,
             "theme_distribution": theme_dist,
-            "risks": risks if risks else ["🟢 本月未偵測到明顯風險"],
-            "opportunities": opportunities if opportunities else ["🟢 本月未偵測到明顯市場機會"]
+            "risks": risks_uniq[:4] if risks_uniq else ["🟢 本月未偵測到明顯風險"],
+            "opportunities": opps_uniq[:4] if opps_uniq else ["🟢 本月未偵測到明顯市場機會"]
         }
 
     # 1.4 Sentiment trend
