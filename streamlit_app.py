@@ -490,11 +490,12 @@ html_template = """<!DOCTYPE html>
             markerGroup = L.layerGroup().addTo(map);
         }
 
-        function createMapIcon(color, isSelected) {
-            const size = isSelected ? 35 : 26;
+        function createMapIcon(color, isSelected, count) {
+            const size = isSelected ? 38 : 30;
             const strokeColor = isSelected ? "#000000" : "#ffffff";
             const strokeW = isSelected ? 3 : 1.5;
-            const html = `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none"><path d="M12 2C8.13 2 5 5.13 5 9C5 14.25 12 22 12 22C12 22 19 14.25 19 9C19 5.13 15.87 2 12 2Z" fill="${color}" stroke="${strokeColor}" stroke-width="${strokeW}"/><path d="M11.5 6L8.5 11H12.5L11.5 16L15.5 10H11.5L11.5 6Z" fill="white"/></svg>`;
+            const numSize = count > 99 ? 7 : count > 9 ? 8.5 : 10;
+            const html = `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none"><path d="M12 2C8.13 2 5 5.13 5 9C5 14.25 12 22 12 22C12 22 19 14.25 19 9C19 5.13 15.87 2 12 2Z" fill="${color}" stroke="${strokeColor}" stroke-width="${strokeW}"/><text x="12" y="10" text-anchor="middle" fill="white" font-size="${numSize}" font-weight="bold" font-family="monospace">${count}</text></svg>`;
             return L.divIcon({ html: html, className: '', iconSize: [size, size], iconAnchor: [size/2, size] });
         }
 
@@ -636,7 +637,7 @@ html_template = """<!DOCTYPE html>
                 if (mappedLoc) { if (!grouped[mappedLoc]) grouped[mappedLoc] = { total: 0, theme: item.theme }; grouped[mappedLoc].total++; }
             });
             Object.entries(grouped).forEach(([locName, info]) => {
-                const marker = L.marker(locationCoords[locName], { icon: createMapIcon(themeColors[info.theme] || fallbackMapColor, (clickedLocation === locName)) });
+                const marker = L.marker(locationCoords[locName], { icon: createMapIcon(themeColors[info.theme] || fallbackMapColor, (clickedLocation === locName), info.total) });
                 marker.bindTooltip(`<b>${locName}</b>: ${info.total} 筆`, { direction: 'top', offset: [0, -10] });
                 marker.on('click', () => { clickedLocation = (clickedLocation === locName) ? null : locName; currentPage = 1; renderDashboard(); });
                 markerGroup.addLayer(marker);
