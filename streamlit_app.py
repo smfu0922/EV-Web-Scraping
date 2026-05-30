@@ -151,4 +151,4 @@ st.dataframe(
 
 # ── Footer ──
 st.caption(f"最後更新: {datetime.now().strftime('%Y-%m-%d %H:%M')}")
-st.caption("數據來源: GitHub (EV_Scraping_Merge_v3.csv)・自動刷新每 60 秒")
+st.caption("數據來源: GitHub (EV_Scraping_Merge.csv)・自動刷新每 60 秒")
