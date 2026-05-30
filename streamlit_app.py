@@ -9,7 +9,7 @@ st.set_page_config(
 )
 
 # ── CSV URL (raw GitHub) ──
-CSV_URL = "https://raw.githubusercontent.com/smfu0922/EV-Web-Scraping/main/EV_Scraping_Merge_v3.csv"
+CSV_URL = "https://raw.githubusercontent.com/smfu0922/EV-Web-Scraping/main/EV_Scraping_Merge.csv"
 
 @st.cache_data(ttl=60)
 def load_data():
