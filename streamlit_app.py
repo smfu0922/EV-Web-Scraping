@@ -619,13 +619,13 @@ html_template = """<!DOCTYPE html>
             // Risks
             const risks = info.risks || ["🟢 本月未偵測到明顯風險"];
             document.getElementById('momRiskText').innerHTML = risks.map(r =>
-                `<div class="flex items-start gap-1.5 mb-1.5"><span class="mt-0.5">${r.includes('🔴')?'🔴':r.includes('🟢')?'🟢':'•'}</span><span>${r.replace(/^[🔴🟢]\s*/,'')}</span></div>`
+                `<div class="flex items-start gap-1.5 mb-1.5 text-xs text-gray-600 leading-relaxed">${r}</div>`
             ).join('');
             
             // Opportunities
             const opportunities = info.opportunities || ["🟢 本月未偵測到明顯市場機會"];
             document.getElementById('momOpportunityText').innerHTML = opportunities.map(o =>
-                `<div class="flex items-start gap-1.5 mb-1.5"><span class="mt-0.5">${o.includes('🟢')?'🟢':o.includes('🔴')?'🔴':'•'}</span><span>${o.replace(/^[🟢🔴]\s*/,'')}</span></div>`
+                `<div class="flex items-start gap-1.5 mb-1.5 text-xs text-gray-600 leading-relaxed">${o}</div>`
             ).join('');
             
             // Sentiment trend (keep existing)
