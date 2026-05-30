@@ -75,8 +75,12 @@ def load_and_process():
 
     months_list = sorted(df['month_str'].dropna().unique())
 
-    # 1.3 Monthly insights
+    # 1.3 Monthly insights — theme distribution + risk/opportunity
     monthly_insights_db = {}
+    the_point_keywords = ['the point', '新地', '新鴻基', 'shkp', '新城市', 'apm', 'wtc', 'ipm']
+    shkp_locations = ['沙田', '元朗', '將軍澳', '葵芳', '屯門', '大埔', '上水', '粉嶺']
+    competitor_ops = ['Sinopec', 'Shell Recharge', 'Cornerstone', 'CLPe', 'Smart Charge', 'Flash Charge', '3 EV Station']
+    
     for i, m in enumerate(months_list):
         m_data = df[df['month_str'] == m]
         prev_m = months_list[i - 1] if i > 0 else None
@@ -84,50 +88,80 @@ def load_and_process():
 
         cur_vol = len(m_data)
         prev_vol = len(prev_m_data)
-
         if prev_vol > 0:
             pct = round(((cur_vol - prev_vol) / prev_vol) * 100)
-            pct_str = f"{'+' if pct >= 0 else ''}{pct}%"
+            vol_badge = f"{'+' if pct >= 0 else ''}{pct}%"
         else:
-            pct_str = "基準月建立"
+            vol_badge = "基準月"
 
-        theme_counts = m_data['theme'].value_counts()
-        top_theme = theme_counts.index[0] if not theme_counts.empty else "無"
+        # Theme distribution for bar chart
+        theme_dist = m_data['theme'].value_counts().to_dict()
+        theme_dist = {k: int(v) for k, v in theme_dist.items()}
+        
+        # Detect risks
+        risks = []
+        # Risk: competitor new stations
+        comp_stations = m_data[(m_data['theme'] == '站點情報') & (m_data['operator'].isin(competitor_ops))]
+        for _, r in comp_stations.iterrows():
+            risks.append(f"🔴 競爭對手【{r['operator']}】{r['location']}新站消息")
+        # Risk: service problems at The Point
+        tp_issues = m_data[(m_data['theme'] == '服務問題') & (m_data['operator'].str.contains('Point|新地', case=False, na=False))]
+        for _, r in tp_issues.iterrows():
+            risks.append(f"🔴 The Point服務問題：{r['summary'][:40]}")
+        # Risk: occupancy at SHKP locations
+        occ_shkp = m_data[(m_data['theme'] == '車位佔用') & (m_data['location'].str.join('|').str.contains('|'.join(shkp_locations), case=False, na=False))]
+        # Actually let me use a simpler approach
+        occ_shkp_rows = m_data[(m_data['theme'] == '車位佔用')]
+        for _, r in occ_shkp_rows.iterrows():
+            loc = str(r.get('location', ''))
+            if any(s in loc for s in shkp_locations):
+                risks.append(f"🔴 {loc}充電位被佔用問題")
+        # Risk: competitor pricing
+        comp_promo = m_data[(m_data['theme'] == '價格動態') & (m_data['operator'].isin(competitor_ops))]
+        for _, r in comp_promo.iterrows():
+            risks.append(f"🔴 對手【{r['operator']}】推出{r.get('promo_val', '優惠')[:30]}")
+        # Risk: general service complaints (top 2 by engagement)
+        service_issues = m_data[(m_data['theme'] == '服務問題')]
+        for _, r in service_issues.iterrows():
+            op = r.get('operator', 'Unknown')
+            if op not in ['Unknown', '', 'The Point']:
+                risks.append(f"🔴 {op}服務問題：{r['summary'][:40]}")
 
-        neg_data = m_data[m_data['sentiment'] == 'Negative']
-        neg_theme_str = "無異常集中吐槽點"
-        neg_detail_str = "🟢 本月車主反饋良好，全港公共與商業充電基建未見集體性抱怨。"
+        # Detect opportunities
+        opportunities = []
+        # Opportunity: SHKP-adjacent new stations
+        shkp_stations = m_data[(m_data['theme'] == '站點情報')]
+        for _, r in shkp_stations.iterrows():
+            loc = str(r.get('location', ''))
+            if any(s in loc for s in shkp_locations):
+                opportunities.append(f"🟢 {loc}新充電設施 — The Point可考慮進駐")
+        # Opportunity: The Point promos
+        tp_promo = m_data[(m_data['operator'].str.contains('Point', case=False, na=False)) & (m_data['sentiment'] == 'Positive')]
+        for _, r in tp_promo.iterrows():
+            opportunities.append(f"🟢 The Point正面反響：{r['summary'][:40]}")
+        # Opportunity: market gaps (charging questions about specific areas)
+        questions = m_data[m_data['theme'] == '充電疑問']
+        for _, r in questions.iterrows():
+            loc = str(r.get('location', ''))
+            if loc and loc != 'Unknown' and any(s in loc for s in shkp_locations):
+                opportunities.append(f"🟢 市場需求：{loc}車主問充電位置 — The Point有機會填補")
+        # Opportunity: positive sentiment for The Point
+        tp_positive = m_data[(m_data['operator'].str.contains('Point', case=False, na=False)) & (m_data['sentiment'] == 'Positive')]
+        if len(tp_positive) > 0 and len(opportunities) < 2:
+            opp_text = f"🟢 The Point本月好評{len(tp_positive)}條，會員滿意度良好"
+            if opp_text not in [o[:len(opp_text)] for o in opportunities]:
+                opportunities.append(opp_text)
 
-        if not neg_data.empty:
-            neg_theme_counts = neg_data['theme'].value_counts()
-            top_neg_theme = neg_theme_counts.index[0]
-            neg_theme_str = f"【{top_neg_theme}】主題怨氣集中"
-            summaries_list = [s for s in neg_data['summary'].tolist() if s and s != '未提及' and s != '']
-            if summaries_list:
-                neg_detail_str = "⚠️ 車主核心不滿：" + "；".join(summaries_list[:2])
-                if len(neg_detail_str) > 130:
-                    neg_detail_str = neg_detail_str[:130] + "..."
-            else:
-                neg_detail_str = f"⚠️ 車主社群本月對{top_neg_theme}的相關設施投訴有所攀升。"
-
-        ops_cur = set(m_data['operator'].unique()) - {'Unknown'}
-        ops_prev = set(prev_m_data['operator'].unique()) - {'Unknown'} if prev_m else set()
-        new_ops = ops_cur - ops_prev
-        if new_ops:
-            mkt_str = f"🎯 發現新插旗訊號！營辦商 【{', '.join(list(new_ops)[:2])}】 本月首度在社群爆發討論。"
-        else:
-            top_ops = m_data['operator'].value_counts()
-            top_ops = top_ops[top_ops.index != 'Unknown']
-            mkt_str = f"🤝 充電格局穩健。熱門提及品牌為 【{', '.join(top_ops.index[:2])}】。" if not top_ops.empty else "🤝 本月市佔格局基本穩健。"
+        # Limit to top 3 each
+        risks = risks[:3]
+        opportunities = opportunities[:3]
 
         monthly_insights_db[m] = {
-            "volume_title": f"總聲量 {cur_vol} 筆 ({pct_str})",
-            "volume_count": f"{cur_vol} 筆",
-            "volume_badge": pct_str,
-            "negative_title": neg_theme_str,
-            "negative_text": neg_detail_str,
-            "top_theme": top_theme,
-            "market_text": mkt_str
+            "volume": cur_vol,
+            "volume_badge": vol_badge,
+            "theme_distribution": theme_dist,
+            "risks": risks if risks else ["🟢 本月未偵測到明顯風險"],
+            "opportunities": opportunities if opportunities else ["🟢 本月未偵測到明顯市場機會"]
         }
 
     # 1.4 Sentiment trend
@@ -342,8 +376,8 @@ html_template = """<!DOCTYPE html>
     <div class="glass-card p-5 rounded-2xl mb-6">
         <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-4 border-b border-gray-100 pb-3">
             <div>
-                <h2 class="text-sm font-bold text-gray-700 border-l-4 border-[#8c7e5a] pl-2">📈 MoM 核心商情環比異動監控 (動態智慧解碼)</h2>
-                <p class="text-[11px] text-gray-400 mt-0.5">切換觀測月份，解碼當月的輿情焦點事件與情緒滾動線</p>
+                <h2 class="text-sm font-bold text-gray-700 border-l-4 border-[#8c7e5a] pl-2">📋 本月話題總覽</h2>
+                <p class="text-[11px] text-gray-400 mt-0.5">切換月份檢視主題分佈、風險與機會洞察</p>
             </div>
             <div class="flex items-center gap-2">
                 <label class="text-xs font-semibold text-gray-500 whitespace-nowrap">觀測月份:</label>
@@ -351,30 +385,23 @@ html_template = """<!DOCTYPE html>
             </div>
         </div>
 
-        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            <div class="lg:col-span-2 grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div class="mom-card p-4 rounded-xl flex flex-col justify-between">
-                    <div><span class="text-[11px] font-bold text-gray-400 uppercase tracking-wider block">📢 輿情聲量環比</span></div>
-                    <div class="flex items-baseline justify-between mt-2">
-                        <span id="momVolumeCount" class="text-2xl font-mono font-bold text-slate-800">-- 筆</span>
-                        <span id="momVolumeBadge" class="text-xs font-bold px-2 py-0.5 rounded-full">--</span>
-                    </div>
-                </div>
-                <div class="mom-card p-4 rounded-xl flex flex-col justify-between border-t-4 border-t-red-600">
-                    <div><span id="momNegativeTitle" class="text-[11px] font-bold text-red-500 uppercase tracking-wider block">⚠️ 負面吐槽焦點</span>
-                        <p id="momNegativeText" class="text-xs text-gray-600 mt-2 leading-relaxed font-medium">正在載入數據焦點...</p>
-                    </div>
-                </div>
-                <div class="mom-card p-4 rounded-xl flex flex-col justify-between border-t-4 border-t-indigo-600">
-                    <div><span class="text-[11px] font-bold text-indigo-600 uppercase tracking-wider block">🤝 競爭格局訊號</span>
-                        <p id="momMarketText" class="text-xs text-gray-600 mt-2 leading-relaxed font-medium">正在對比捕捉...</p>
-                    </div>
-                </div>
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
+            <div class="mom-card p-4 rounded-xl">
+                <div><span class="text-[11px] font-bold text-gray-400 uppercase tracking-wider block">📊 本月主題分佈</span></div>
+                <div id="themeBarContainer" class="mt-2 space-y-1 text-[11px]"></div>
             </div>
-            <div class="bg-[#faf9f5] p-3 rounded-xl border border-[#dcd7bc]">
-                <span id="trendChartTitle" class="text-[11px] font-bold text-gray-500 uppercase tracking-wider block mb-1">🟢 🟡 🔴 滾動情緒趨勢</span>
-                <div id="trendLineChart" style="width: 100%; height: 110px;"></div>
+            <div class="mom-card p-4 rounded-xl border-t-4 border-t-red-500">
+                <span class="text-[11px] font-bold text-red-600 uppercase tracking-wider block">⚠️ 本月風險預警</span>
+                <div id="momRiskText" class="mt-2 text-xs text-gray-600 leading-relaxed font-medium">正在載入...</div>
             </div>
+            <div class="mom-card p-4 rounded-xl border-t-4 border-t-emerald-500">
+                <span class="text-[11px] font-bold text-emerald-600 uppercase tracking-wider block">✅ 本月市場機會</span>
+                <div id="momOpportunityText" class="mt-2 text-xs text-gray-600 leading-relaxed font-medium">正在載入...</div>
+            </div>
+        </div>
+        <div class="bg-[#faf9f5] p-3 rounded-xl border border-[#dcd7bc] mt-4">
+            <span id="trendChartTitle" class="text-[11px] font-bold text-gray-500 uppercase tracking-wider block mb-1">🟢 🟡 🔴 滾動情緒趨勢</span>
+            <div id="trendLineChart" style="width: 100%; height: 110px;"></div>
         </div>
     </div>
 
@@ -490,12 +517,17 @@ html_template = """<!DOCTYPE html>
             markerGroup = L.layerGroup().addTo(map);
         }
 
-        function createMapIcon(color, isSelected, count) {
-            const size = isSelected ? 38 : 30;
-            const strokeColor = isSelected ? "#000000" : "#ffffff";
-            const strokeW = isSelected ? 3 : 1.5;
-            const numSize = count > 99 ? 7 : count > 9 ? 8.5 : 10;
-            const html = `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none"><path d="M12 2C8.13 2 5 5.13 5 9C5 14.25 12 22 12 22C12 22 19 14.25 19 9C19 5.13 15.87 2 12 2Z" fill="${color}" stroke="${strokeColor}" stroke-width="${strokeW}"/><text x="12" y="10" text-anchor="middle" fill="white" font-size="${numSize}" font-weight="bold" font-family="monospace">${count}</text></svg>`;
+        function createMapIcon(color, isSelected, count, isUnknown) {
+            const size = isSelected ? 40 : 32;
+            const opacity = isUnknown ? 0.45 : 1;
+            const strokeW = isSelected ? 3 : 2;
+            const numSize = count > 99 ? 10 : count > 9 ? 12 : 14;
+            const html = `<svg width="${size}" height="${size}" viewBox="0 0 32 32" fill="none">
+                <circle cx="16" cy="16" r="14" fill="${color}" fill-opacity="${opacity}" 
+                    stroke="${isSelected ? '#000' : '#fff'}" stroke-width="${strokeW}"/>
+                <text x="16" y="19" text-anchor="middle" fill="white" font-size="${numSize}" 
+                    font-weight="bold" font-family="monospace">${count}</text>
+            </svg>`;
             return L.divIcon({ html: html, className: '', iconSize: [size, size], iconAnchor: [size/2, size] });
         }
 
@@ -510,13 +542,39 @@ html_template = """<!DOCTYPE html>
             const currentMonth = document.getElementById('monthSelector').value;
             const info = monthlyInsights[currentMonth];
             if (!info) return;
-            document.getElementById('momVolumeCount').textContent = info.volume_count;
-            const vBadge = document.getElementById('momVolumeBadge');
-            vBadge.textContent = info.volume_badge;
-            vBadge.className = info.volume_badge.includes('-') ? "bg-red-50 text-red-700 border border-red-200 px-2 py-0.5 rounded-full" : "bg-green-50 text-green-700 border border-green-200 px-2 py-0.5 rounded-full";
-            document.getElementById('momNegativeTitle').textContent = info.negative_title;
-            document.getElementById('momNegativeText').innerHTML = info.negative_text;
-            document.getElementById('momMarketText').innerHTML = info.market_text;
+            
+            // Theme distribution bar chart
+            const themeColors = {"充電疑問":"#5e5843","價格動態":"#2d6662","站點情報":"#a34d43","其他無關":"#616161","服務問題":"#d67a2a","車位佔用":"#4a86b8"};
+            const dist = info.theme_distribution || {};
+            const themeOrder = ["充電疑問","價格動態","站點情報","服務問題","車位佔用","其他無關"];
+            let barHtml = '';
+            let maxVal = Math.max(...Object.values(dist), 1);
+            themeOrder.forEach(t => {
+                if (dist[t] === undefined) return;
+                const pct = (dist[t] / maxVal) * 100;
+                barHtml += `<div class="flex items-center gap-1.5">
+                    <span class="w-16 text-right text-gray-500 font-medium truncate">${t}</span>
+                    <div class="flex-1 h-3 bg-gray-100 rounded-full overflow-hidden">
+                        <div class="h-full rounded-full" style="width:${pct}%;background:${themeColors[t]||'#999'}"></div>
+                    </div>
+                    <span class="w-8 text-right font-mono font-bold text-gray-700">${dist[t]}</span>
+                </div>`;
+            });
+            document.getElementById('themeBarContainer').innerHTML = barHtml;
+            
+            // Risks
+            const risks = info.risks || ["🟢 本月未偵測到明顯風險"];
+            document.getElementById('momRiskText').innerHTML = risks.map(r =>
+                `<div class="flex items-start gap-1.5 mb-1.5"><span class="mt-0.5">${r.includes('🔴')?'🔴':r.includes('🟢')?'🟢':'•'}</span><span>${r.replace(/^[🔴🟢]\s*/,'')}</span></div>`
+            ).join('');
+            
+            // Opportunities
+            const opportunities = info.opportunities || ["🟢 本月未偵測到明顯市場機會"];
+            document.getElementById('momOpportunityText').innerHTML = opportunities.map(o =>
+                `<div class="flex items-start gap-1.5 mb-1.5"><span class="mt-0.5">${o.includes('🟢')?'🟢':o.includes('🔴')?'🔴':'•'}</span><span>${o.replace(/^[🟢🔴]\s*/,'')}</span></div>`
+            ).join('');
+            
+            // Sentiment trend (keep existing)
             const allMonthsSorted = Object.keys(monthlyInsights).sort();
             const currIdx = allMonthsSorted.indexOf(currentMonth);
             const startIdx = Math.max(0, currIdx - 5);
@@ -637,7 +695,7 @@ html_template = """<!DOCTYPE html>
                 if (mappedLoc) { if (!grouped[mappedLoc]) grouped[mappedLoc] = { total: 0, theme: item.theme }; grouped[mappedLoc].total++; }
             });
             Object.entries(grouped).forEach(([locName, info]) => {
-                const marker = L.marker(locationCoords[locName], { icon: createMapIcon(themeColors[info.theme] || fallbackMapColor, (clickedLocation === locName), info.total) });
+                const marker = L.marker(locationCoords[locName], { icon: createMapIcon(themeColors[info.theme] || fallbackMapColor, (clickedLocation === locName), info.total, false) });
                 marker.bindTooltip(`<b>${locName}</b>: ${info.total} 筆`, { direction: 'top', offset: [0, -10] });
                 marker.on('click', () => { clickedLocation = (clickedLocation === locName) ? null : locName; currentPage = 1; renderDashboard(); });
                 markerGroup.addLayer(marker);
