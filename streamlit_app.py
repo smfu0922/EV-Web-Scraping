@@ -441,7 +441,10 @@ html_template = """<!DOCTYPE html>
 
         <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
             <div class="mom-card p-4 rounded-xl">
-                <div><span class="text-[11px] font-bold text-gray-400 uppercase tracking-wider block">📊 本月主題分佈</span></div>
+                <div class="flex items-center justify-between">
+                    <span class="text-[11px] font-bold text-gray-400 uppercase tracking-wider">📊 本月主題分佈</span>
+                    <span id="themeBarTitle" class="text-[10px] text-gray-500 font-mono"></span>
+                </div>
                 <div id="themeBarContainer" class="mt-2 space-y-1 text-[11px]"></div>
             </div>
             <div class="mom-card p-4 rounded-xl border-t-4 border-t-red-500">
@@ -615,6 +618,11 @@ html_template = """<!DOCTYPE html>
                 </div>`;
             });
             document.getElementById('themeBarContainer').innerHTML = barHtml;
+            
+            // Volume summary beside title
+            const volClass = info.volume_badge.includes('-') ? 'text-red-500' : info.volume_badge === '基準月' ? 'text-gray-400' : 'text-green-600';
+            document.getElementById('themeBarTitle').innerHTML = 
+                `<span class="font-bold">${info.volume}</span> 筆 <span class="${volClass}">${info.volume_badge}</span>`;
             
             // Risks
             const risks = info.risks || ["🟢 本月未偵測到明顯風險"];
