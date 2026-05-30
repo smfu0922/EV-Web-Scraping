@@ -5,7 +5,7 @@ import json
 import os
 
 st.set_page_config(
-    page_title="HK EV Charging Dashboard ⚡",
+    page_title="EV Charging Insight Dashboard ⚡",
     page_icon="⚡",
     layout="wide",
     initial_sidebar_state="collapsed"
@@ -242,7 +242,7 @@ html_template = """<!DOCTYPE html>
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>HK EV Charging Insight Dashboard</title>
+    <title>EV Charging Insight Dashboard</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js"></script>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
@@ -264,7 +264,7 @@ html_template = """<!DOCTYPE html>
 
     <header class="mb-6 p-5 rounded-2xl glass-card flex flex-col md:flex-row justify-between items-start md:items-center border-l-8 border-[#5e5843]">
         <div>
-            <h1 class="text-2xl font-bold tracking-tight text-[#2b271d]">🌐 HK EV Charging Premium Business Dashboard</h1>
+            <h1 class="text-2xl font-bold tracking-tight text-[#2b271d]">🌐 EV Charging Insight Dashboard</h1>
         </div>
         <div class="flex flex-wrap items-center gap-2 mt-3 md:mt-0 max-w-3xl">
             <div id="statusTheme" class="filter-badge">🎯 主題: 全部</div>
