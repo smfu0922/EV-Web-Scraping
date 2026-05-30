@@ -21,7 +21,6 @@ st.markdown("""
         margin: 0 !important;
     }
     .stApp {
-        margin-top: -80px;
         background: #f5f4ed;
     }
     iframe {
@@ -261,7 +260,7 @@ html_template = """<!DOCTYPE html>
         th, td { border-bottom: 1px solid #eeebe0; }
     </style>
 </head>
-<body class="p-6 antialiased relative">
+<body class="pt-14 px-6 pb-6 antialiased relative">
 
     <header class="mb-6 p-5 rounded-2xl glass-card flex flex-col md:flex-row justify-between items-start md:items-center border-l-8 border-[#5e5843]">
         <div>
