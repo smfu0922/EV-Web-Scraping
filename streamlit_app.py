@@ -7,8 +7,31 @@ import os
 st.set_page_config(
     page_title="HK EV Charging Dashboard ⚡",
     page_icon="⚡",
-    layout="wide"
+    layout="wide",
+    initial_sidebar_state="collapsed"
 )
+
+# ── 100% full page coverage ──
+st.markdown("""
+<style>
+    #MainMenu, header, footer {display: none !important;}
+    .stApp .block-container {
+        padding: 0 !important;
+        max-width: 100% !important;
+        margin: 0 !important;
+    }
+    .stApp {
+        margin-top: -80px;
+        background: #f5f4ed;
+    }
+    iframe {
+        width: 100vw !important;
+        border: none !important;
+        margin: 0 !important;
+        padding: 0 !important;
+    }
+</style>
+""", unsafe_allow_html=True)
 
 # ── CSV URL (raw GitHub) ──
 CSV_URL = "https://raw.githubusercontent.com/smfu0922/EV-Web-Scraping/main/EV_Scraping_Merge.csv"
@@ -725,7 +748,5 @@ output_html = output_html.replace("__OPERATORS_MONTHLY_MATRIX__", json_operators
 output_html = output_html.replace("__MIN_DATE__", min_date)
 output_html = output_html.replace("__MAX_DATE__", max_date)
 
-# ── Render HTML in Streamlit ──
-st.components.v1.html(output_html, height=2000, scrolling=True)
-
-st.caption(f"數據來源: GitHub (EV_Scraping_Merge.csv)・自動刷新每 60 秒")
+# ── Render HTML in Streamlit (100% full page) ──
+st.components.v1.html(output_html, height=99999, scrolling=True)
