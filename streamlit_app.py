@@ -368,6 +368,7 @@ html_template = """<!DOCTYPE html>
             <div id="statusLocation" class="filter-badge">📍 地點: 全部</div>
             <div id="statusLandlord" class="filter-badge">🏢 業主: 全部</div>
             <div id="totalNumBadge" class="text-sm bg-[#5e5843]/10 text-[#5e5843] px-4 py-1 rounded-full border border-[#5e5843]/30 font-mono font-bold">Total: -- 筆</div>
+            <button onclick="resetAllFilters()" class="text-[10px] bg-gray-100 hover:bg-gray-200 text-gray-600 font-bold px-3 py-1.5 rounded-lg border border-gray-200 transition-all whitespace-nowrap">🔄 一鍵重置</button>
         </div>
     </header>
 
@@ -383,7 +384,7 @@ html_template = """<!DOCTYPE html>
     </div>
 
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
-        <div class="glass-card p-5 rounded-2xl flex flex-col justify-between h-[360px]">
+        <div class="glass-card p-5 rounded-2xl flex flex-col h-[360px]">
             <div>
                 <h2 class="text-sm font-bold text-gray-700 mb-2 border-l-4 border-[#5e5843] pl-2">🎛️ 智能數據控制台</h2>
                 <div class="mb-2">
@@ -414,7 +415,6 @@ html_template = """<!DOCTYPE html>
                     </div>
                 </div>
             </div>
-            <button onclick="resetAllFilters()" class="w-full py-1.5 bg-gray-200 hover:bg-gray-300 text-gray-700 text-[11px] font-bold rounded-lg transition-all border border-gray-300 shadow-sm">🔄 一鍵重置所有篩選</button>
         </div>
 
         <div class="glass-card p-5 rounded-2xl lg:col-span-2 flex flex-col justify-between h-[360px]">
