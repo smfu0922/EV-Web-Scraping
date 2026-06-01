@@ -456,9 +456,15 @@ html_template = """<!DOCTYPE html>
                 <div id="momOpportunityText" class="mt-2 text-xs text-gray-600 leading-relaxed font-medium">正在載入...</div>
             </div>
         </div>
-        <div class="bg-[#faf9f5] p-3 rounded-xl border border-[#dcd7bc] mt-4">
-            <span id="trendChartTitle" class="text-[11px] font-bold text-gray-500 uppercase tracking-wider block mb-1">🟢 🟡 🔴 滾動情緒趨勢</span>
-            <div id="trendLineChart" style="width: 100%; height: 110px;"></div>
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 mt-4">
+            <div class="bg-[#faf9f5] p-3 rounded-xl border border-[#dcd7bc]">
+                <span class="text-[11px] font-bold text-gray-500 uppercase tracking-wider block mb-1">📊 主題滾動趨勢 (近6月)</span>
+                <div id="themeTrendChart" style="width: 100%; height: 110px;"></div>
+            </div>
+            <div class="bg-[#faf9f5] p-3 rounded-xl border border-[#dcd7bc]">
+                <span id="trendChartTitle" class="text-[11px] font-bold text-gray-500 uppercase tracking-wider block mb-1">🟢 🟡 🔴 滾動情緒趨勢</span>
+                <div id="trendLineChart" style="width: 100%; height: 110px;"></div>
+            </div>
         </div>
     </div>
 
@@ -541,6 +547,7 @@ html_template = """<!DOCTYPE html>
         let barChart = echarts.init(document.getElementById('barChart'));
         let donutChart = echarts.init(document.getElementById('donutChart'));
         let trendLineChart = echarts.init(document.getElementById('trendLineChart'));
+        let themeTrendChart = echarts.init(document.getElementById('themeTrendChart'));
         let operatorsFullTimelineChart = echarts.init(document.getElementById('operatorsFullTimelineChart'));
         let operatorSentimentStackChart = echarts.init(document.getElementById('operatorSentimentStackChart'));
 
@@ -570,7 +577,7 @@ html_template = """<!DOCTYPE html>
                     openIntelPanel(btn.dataset.id, btn.dataset.summary, btn.dataset.impact, btn.dataset.insight);
                 }
             });
-            window.addEventListener('resize', () => { barChart.resize(); donutChart.resize(); trendLineChart.resize(); operatorsFullTimelineChart.resize(); operatorSentimentStackChart.resize(); });
+            window.addEventListener('resize', () => { barChart.resize(); donutChart.resize(); trendLineChart.resize(); themeTrendChart.resize(); operatorsFullTimelineChart.resize(); operatorSentimentStackChart.resize(); });
         });
 
         function initLeafletMap() {
@@ -606,21 +613,37 @@ html_template = """<!DOCTYPE html>
             const info = monthlyInsights[currentMonth];
             if (!info) return;
             
-            // Theme distribution bar chart
+            // Theme distribution bar chart with MoM arrows
             const themeColors = {"充電疑問":"#5e5843","價格動態":"#2d6662","站點情報":"#a34d43","其他無關":"#616161","服務問題":"#d67a2a","車位佔用":"#4a86b8"};
             const dist = info.theme_distribution || {};
             const themeOrder = ["充電疑問","價格動態","站點情報","服務問題","車位佔用","其他無關"];
+            // Previous month for comparison
+            const allMs = Object.keys(monthlyInsights).sort();
+            const curIdx = allMs.indexOf(currentMonth);
+            const prevMn = curIdx > 0 ? allMs[curIdx - 1] : null;
+            const prevDist = prevMn ? (monthlyInsights[prevMn].theme_distribution || {}) : {};
             let barHtml = '';
             let maxVal = Math.max(...Object.values(dist), 1);
             themeOrder.forEach(t => {
-                if (dist[t] === undefined) return;
-                const pct = (dist[t] / maxVal) * 100;
-                barHtml += `<div class="flex items-center gap-1.5">
-                    <span class="w-16 text-right text-gray-500 font-medium truncate">${t}</span>
-                    <div class="flex-1 h-3 bg-gray-100 rounded-full overflow-hidden">
-                        <div class="h-full rounded-full" style="width:${pct}%;background:${themeColors[t]||'#999'}"></div>
+                const currVal = dist[t] || 0;
+                const prevVal = prevDist[t] || 0;
+                const diff = currVal - prevVal;
+                const pct = (currVal / maxVal) * 100;
+                let diffHtml;
+                if (diff > 0) {
+                    diffHtml = `<span class="text-green-600 font-bold text-[10px]">↑+${diff}</span>`;
+                } else if (diff < 0) {
+                    diffHtml = `<span class="text-red-500 font-bold text-[10px]">↓${diff}</span>`;
+                } else {
+                    diffHtml = `<span class="text-gray-300 font-bold text-[10px]">—</span>`;
+                }
+                barHtml += `<div class="flex items-center gap-1">
+                    <span class="w-14 text-right text-gray-500 font-medium truncate text-[10px]">${t}</span>
+                    <div class="flex-1 h-2.5 bg-gray-100 rounded-full overflow-hidden">
+                        <div class="h-full rounded-full" style="width:${Math.max(pct,1.5)}%;background:${themeColors[t]||'#999'}"></div>
                     </div>
-                    <span class="w-8 text-right font-mono font-bold text-gray-700">${dist[t]}</span>
+                    <span class="w-5 text-right font-mono font-bold text-gray-700 text-[10px]">${currVal}</span>
+                    ${diffHtml}
                 </div>`;
             });
             document.getElementById('themeBarContainer').innerHTML = barHtml;
@@ -666,6 +689,32 @@ html_template = """<!DOCTYPE html>
                     { name: 'Neutral', type: 'line', data: neuData, smooth: true, itemStyle: { color: '#ca8a04' } },
                     { name: 'Negative', type: 'line', data: negData, smooth: true, itemStyle: { color: '#dc2626' } }
                 ]
+            }, true);
+
+            // Theme trend chart — last 6 months per-theme volume
+            const themeTrendSeries = themeOrder.map(t => {
+                const data = rollingMonths.map(m => {
+                    const d = monthlyInsights[m] ? monthlyInsights[m].theme_distribution || {} : {};
+                    return d[t] || 0;
+                });
+                return {
+                    name: t,
+                    type: 'line',
+                    data: data,
+                    smooth: true,
+                    symbol: 'circle',
+                    symbolSize: 4,
+                    lineStyle: { width: 1.5 },
+                    itemStyle: { color: themeColors[t] || '#999' }
+                };
+            });
+            themeTrendChart.setOption({
+                tooltip: { trigger: 'axis' },
+                legend: { show: false },
+                grid: { top: 15, bottom: 20, left: 30, right: 10 },
+                xAxis: { type: 'category', data: rollingMonths, axisLabel: { fontSize: 9 } },
+                yAxis: { type: 'value', minInterval: 1, splitLine: { show: false }, axisLabel: { fontSize: 8 } },
+                series: themeTrendSeries
             }, true);
         }
 
