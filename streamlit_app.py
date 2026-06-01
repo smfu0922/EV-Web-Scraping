@@ -564,6 +564,12 @@ html_template = """<!DOCTYPE html>
                     if (cb) { cb.checked = !cb.checked; handleOperatorChange(); }
                 }
             });
+            document.addEventListener('click', function(e) {
+                const btn = e.target.closest('.intel-btn');
+                if (btn) {
+                    openIntelPanel(btn.dataset.id, btn.dataset.summary, btn.dataset.impact, btn.dataset.insight);
+                }
+            });
             window.addEventListener('resize', () => { barChart.resize(); donutChart.resize(); trendLineChart.resize(); operatorsFullTimelineChart.resize(); operatorSentimentStackChart.resize(); });
         });
 
@@ -818,10 +824,8 @@ html_template = """<!DOCTYPE html>
                 else if (item.theme === "車位佔用") themeBadgeColor = "bg-blue-50 text-blue-700 border-blue-200";
                 let intelButton = '<span class="text-gray-300 font-serif font-light text-center block">-</span>';
                 if (item.has_intel) {
-                    const safeSummary = item.summary.replace(/'/g, "\\\\'").replace(/"/g, '\\\\"');
-                    const safeImpact = item.user_impact.replace(/'/g, "\\\\'").replace(/"/g, '\\\\"');
-                    const safeInsight = item.comp_insight.replace(/'/g, "\\\\'").replace(/"/g, '\\\\"');
-                    intelButton = `<button onclick="openIntelPanel('${item.id}', '${safeSummary}', '${safeImpact}', '${safeInsight}')" class="bg-amber-100 hover:bg-amber-200 text-amber-800 font-bold px-2.5 py-1 rounded-lg flex items-center gap-1 transition-all border border-amber-300 shadow-sm mx-auto animate-pulse"><span>💡</span> <span class="text-[10px]">解碼</span></button>`;
+                    const esc = s => s.replace(/"/g, '&quot;').replace(/'/g, '&#39;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+                    intelButton = `<button data-id="${esc(item.id)}" data-summary="${esc(item.summary)}" data-impact="${esc(item.user_impact)}" data-insight="${esc(item.comp_insight)}" class="intel-btn bg-amber-100 hover:bg-amber-200 text-amber-800 font-bold px-2.5 py-1 rounded-lg flex items-center gap-1 transition-all border border-amber-300 shadow-sm mx-auto animate-pulse"><span>💡</span> <span class="text-[10px]">解碼</span></button>`;
                 }
                 tr.innerHTML = `
                     <td class="p-3 text-gray-400 font-mono font-medium whitespace-nowrap"><a href="${item.post_url}" target="_blank" class="text-blue-600 hover:underline font-bold">${item.id} 🔗</a></td>
@@ -845,11 +849,22 @@ html_template = """<!DOCTYPE html>
             document.getElementById('panelUserImpact').textContent = userImpact;
             document.getElementById('panelCompInsight').textContent = compInsight;
             const panel = document.getElementById('rightIntelPanel');
+            // Position at current viewport: get parent scroll offset from iframe position
+            try {
+                const iframeRect = window.frameElement.getBoundingClientRect();
+                panel.style.position = 'absolute';
+                panel.style.top = Math.max(0, -iframeRect.top) + 'px';
+            } catch(e) {
+                panel.style.position = 'fixed';
+                panel.style.top = '0';
+            }
             panel.classList.remove('translate-x-full'); panel.classList.add('translate-x-0');
         }
 
         function closeIntelPanel() {
             const panel = document.getElementById('rightIntelPanel');
+            panel.style.position = '';
+            panel.style.top = '';
             panel.classList.remove('translate-x-0'); panel.classList.add('translate-x-full');
         }
 
