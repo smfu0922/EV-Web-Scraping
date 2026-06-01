@@ -797,8 +797,11 @@ html_template = """<!DOCTYPE html>
                 series: [{ type: 'bar', data: categories.map(cat => ({ value: counts[cat], itemStyle: { color: (clickedTheme && clickedTheme !== cat) ? '#e0dcce' : themeColors[cat], borderRadius: [0, 4, 4, 0] } })), label: { show: true, position: 'right', formatter: '{c} 筆' } }]
             }, true);
             donutChart.setOption({
-                backgroundColor: 'transparent', tooltip: { trigger: 'item' },
-                series: [{ type: 'pie', radius: ['42%', '70%'], center: ['40%', '50%'], avoidLabelOverlap: false, label: { show: false }, data: categories.map(cat => ({ name: cat, value: counts[cat], itemStyle: { color: (clickedTheme && clickedTheme !== cat) ? '#e0dcce' : themeColors[cat] } })) }]
+                backgroundColor: 'transparent', tooltip: { trigger: 'item', formatter: '{b}: {c} 筆 ({d}%)' },
+                series: [{ type: 'pie', radius: ['42%', '70%'], center: ['40%', '50%'], avoidLabelOverlap: true,
+                    label: { show: true, position: 'outside', formatter: '{d}%', fontSize: 10, color: '#5e5843' },
+                    labelLine: { show: true, length: 8, length2: 10 },
+                    data: categories.map(cat => ({ name: cat, value: counts[cat], itemStyle: { color: (clickedTheme && clickedTheme !== cat) ? '#e0dcce' : themeColors[cat] } })) }]
             }, true);
         }
 
