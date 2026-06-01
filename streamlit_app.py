@@ -267,7 +267,7 @@ def load_and_process():
             "source": row["source"],
             "operator": row["operator"],
             "sentiment": row["sentiment"],
-            "location": row["location"],
+            "location": row["location"] if row["location"] and row["location"] not in ["未提及", " ", ""] else "Unknown",
             "theme": row["theme"],
             "charge_type": row["charge_type"],
             "landlord": row["landlord"] if row["landlord"] != "未提及" else "未知場主",
@@ -834,7 +834,7 @@ html_template = """<!DOCTYPE html>
                     <td class="p-3 font-medium text-slate-700 max-w-[140px] break-words"><div class="font-bold">${item.operator}</div><div class="text-[10px] text-gray-400 mt-0.5">場主: ${item.landlord}</div></td>
                     <td class="p-3 whitespace-nowrap"><span class="${themeBadgeColor} border px-2 py-0.5 rounded-md font-bold text-[10px]">${item.theme}</span></td>
                     <td class="p-3 whitespace-nowrap">${sentBadge}</td>
-                    <td class="p-3 text-gray-600 font-bold w-[100px] min-w-[100px] max-w-[100px] break-all whitespace-normal">${item.location || '<span class="text-gray-300 font-normal">Unknown</span>'}</td>
+                    <td class="p-3 text-gray-600 font-bold w-[100px] min-w-[100px] max-w-[100px] break-all whitespace-normal">${item.location === 'Unknown' ? '<span class="text-gray-300 font-normal">Unknown</span>' : item.location}</td>
                     <td class="p-3 break-words text-justify whitespace-normal w-full min-w-[360px]">${item.text_html}</td>
                     <td class="p-3 text-center vertical-align-middle whitespace-nowrap">${intelButton}</td>
                 `;
