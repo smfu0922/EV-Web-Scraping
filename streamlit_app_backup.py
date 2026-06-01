@@ -5,7 +5,7 @@ import json
 import os
 
 st.set_page_config(
-    page_title="EV Charging Insight Dashboard ⚡",
+    page_title="HK EV Charging Dashboard ⚡",
     page_icon="⚡",
     layout="wide",
     initial_sidebar_state="collapsed"
@@ -75,12 +75,8 @@ def load_and_process():
 
     months_list = sorted(df['month_str'].dropna().unique())
 
-    # 1.3 Monthly insights — theme distribution + risk/opportunity
+    # 1.3 Monthly insights
     monthly_insights_db = {}
-    the_point_keywords = ['the point', '新地', '新鴻基', 'shkp', '新城市', 'apm', 'wtc', 'ipm', '新都會', 'apm']
-    shkp_locations = ['沙田', '元朗', '將軍澳', '葵芳', '屯門', '大埔', '上水', '粉嶺', '荃灣']
-    competitor_ops = ['Sinopec', 'Shell Recharge', 'Cornerstone', 'CLPe', 'Smart Charge', 'Flash Charge', '3 EV Station', 'Tesla']
-    
     for i, m in enumerate(months_list):
         m_data = df[df['month_str'] == m]
         prev_m = months_list[i - 1] if i > 0 else None
@@ -88,134 +84,50 @@ def load_and_process():
 
         cur_vol = len(m_data)
         prev_vol = len(prev_m_data)
+
         if prev_vol > 0:
             pct = round(((cur_vol - prev_vol) / prev_vol) * 100)
-            vol_badge = f"{'+' if pct >= 0 else ''}{pct}%"
+            pct_str = f"{'+' if pct >= 0 else ''}{pct}%"
         else:
-            vol_badge = "基準月"
+            pct_str = "基準月建立"
 
-        # Theme distribution
-        theme_dist = m_data['theme'].value_counts().to_dict()
-        theme_dist = {k: int(v) for k, v in theme_dist.items()}
-        
-        # Risks — meaningful business risks and lessons
-        risks = []
-        
-        # 1. Service failures → lessons for The Point
-        for _, r in m_data[m_data['theme'] == '服務問題'].iterrows():
-            op = r.get('operator', '')
-            loc = str(r.get('location', ''))
-            summary = str(r.get('summary', ''))
-            label = op if op and op != 'Unknown' else (loc if loc and loc != 'Unknown' else '有營辦商')
-            risks.append(f"🔴 {label}服務問題 | {summary[:60]}")
-        
-        # 2. Occupancy issues → operational risk
-        for _, r in m_data[m_data['theme'] == '車位佔用'].iterrows():
-            loc = str(r.get('location', ''))
-            label = loc if loc and loc != 'Unknown' else '有停車場'
-            risks.append(f"🔴 充電位被佔用 | {label}")
-        
-        # 3. Pricing complaints → pricing strategy signal
-        for _, r in m_data[(m_data['theme'] == '價格動態') & (m_data['sentiment'] == 'Negative')].iterrows():
-            risks.append(f"🔴 收費敏感性 | {str(r.get('summary',''))[:55]}")
-        
-        # 4. Competitor intelligence
-        for _, r in m_data[(m_data['theme'] == '站點情報') & (m_data['operator'].isin(competitor_ops))].iterrows():
-            risks.append(f"🔴 對手動態 | 【{r['operator']}】{r['location']}新站")
-        for _, r in m_data[(m_data['theme'] == '價格動態') & (m_data['operator'].isin(competitor_ops))].iterrows():
-            promo = str(r.get('promo_val', '')).strip()
-            if promo and promo != 'None':
-                risks.append(f"🔴 對手動態 | 【{r['operator']}】推{promo[:35]}")
-        
-        # 5. The Point specific issues
-        tp_rows = m_data[m_data['operator'].str.contains('Point', case=False, na=False)]
-        if len(tp_rows) > 0:
-            neg_tp = tp_rows[tp_rows['sentiment'] == 'Negative']
-            for _, r in neg_tp.iterrows():
-                risks.append(f"🔴 The Point關注 | {str(r.get('summary',''))[:55]}")
-        
-        # Opportunities — actionable strategies
-        opportunities = []
-        
-        # 1. New station intelligence → market expansion reference
-        for _, r in m_data[m_data['theme'] == '站點情報'].iterrows():
-            loc = str(r.get('location', ''))
-            op = r.get('operator', '')
-            summary = str(r.get('summary', ''))
-            if op and op != 'Unknown':
-                opp_text = f"🟢 新站動態 | {loc}（{op}）— {summary[:50]}"
-            else:
-                opp_text = f"🟢 新站動態 | {loc}新充電設施啟用"
-            opportunities.append(opp_text)
-        
-        # 2. Market demand signals → where to expand
-        for _, r in m_data[(m_data['theme'] == '充電疑問')].iterrows():
-            loc = str(r.get('location', ''))
-            summary = str(r.get('summary', ''))
-            if loc and loc != 'Unknown':
-                if any(s in loc for s in shkp_locations):
-                    opportunities.append(f"🟢 布局機會 | {loc}車主需求活躍 — The Point可探討進駐")
-                else:
-                    opportunities.append(f"🟢 市場需求 | {loc}有用戶需求")
-            else:
-                # General question topic
-                if '安裝' in summary or '裝充' in summary:
-                    opportunities.append(f"🟢 安裝需求 | 車主查詢家用充電安裝方案")
-                elif '推薦' in summary or '推介' in summary:
-                    opportunities.append(f"🟢 產品機遇 | 車主尋找充電產品推薦")
-        
-        # 3. Customer satisfaction signals
-        pos_count = len(m_data[m_data['sentiment'] == 'Positive'])
-        neg_count = len(m_data[m_data['sentiment'] == 'Negative'])
-        if pos_count > neg_count * 2 and pos_count >= 4:
-            opportunities.append(f"🟢 市調信號 | 本月車主情緒正面（{pos_count}好評 vs {neg_count}負評）")
-        
-        # 4. New market entrants
-        if prev_vol > 0:
-            ops_cur = set(m_data['operator'].unique()) - {'Unknown', ''}
-            ops_prev = set(prev_m_data['operator'].unique()) - {'Unknown', ''}
-            new_ops = ops_cur - ops_prev
-            for op in list(new_ops)[:2]:
-                opportunities.append(f"🟢 市場新臉 | 【{op}】本月首度在社群被討論")
-        
-        # 5. The Point positive signals
-        if len(tp_rows) > 0:
-            pos_tp = tp_rows[tp_rows['sentiment'] == 'Positive']
-            if len(pos_tp) > 0:
-                for _, r in pos_tp.iterrows():
-                    opportunities.append(f"🟢 The Point正面 | {str(r.get('summary',''))[:55]}")
-        
-        # 6. Hot topic summary (most discussed theme + key event)
-        if theme_dist:
-            top_theme_name = max(theme_dist, key=theme_dist.get)
-            top_theme_count = theme_dist[top_theme_name]
-            total_pct = round(top_theme_count/cur_vol*100) if cur_vol > 0 else 0
-            vol_str = f"（{vol_badge}，共{cur_vol}筆）"
-            opportunities.insert(0, f"📊 本月焦點 | 「{top_theme_name}」最熱門（{top_theme_count}筆，佔{total_pct}%）{vol_str}")
+        theme_counts = m_data['theme'].value_counts()
+        top_theme = theme_counts.index[0] if not theme_counts.empty else "無"
 
-        # De-duplicate
-        seen = set()
-        risks_uniq = []
-        for r in risks:
-            key = r[:40]
-            if key not in seen:
-                seen.add(key)
-                risks_uniq.append(r)
-        
-        seen = set()
-        opps_uniq = []
-        for o in opportunities:
-            key = o[:40]
-            if key not in seen:
-                seen.add(key)
-                opps_uniq.append(o)
+        neg_data = m_data[m_data['sentiment'] == 'Negative']
+        neg_theme_str = "無異常集中吐槽點"
+        neg_detail_str = "🟢 本月車主反饋良好，全港公共與商業充電基建未見集體性抱怨。"
+
+        if not neg_data.empty:
+            neg_theme_counts = neg_data['theme'].value_counts()
+            top_neg_theme = neg_theme_counts.index[0]
+            neg_theme_str = f"【{top_neg_theme}】主題怨氣集中"
+            summaries_list = [s for s in neg_data['summary'].tolist() if s and s != '未提及' and s != '']
+            if summaries_list:
+                neg_detail_str = "⚠️ 車主核心不滿：" + "；".join(summaries_list[:2])
+                if len(neg_detail_str) > 130:
+                    neg_detail_str = neg_detail_str[:130] + "..."
+            else:
+                neg_detail_str = f"⚠️ 車主社群本月對{top_neg_theme}的相關設施投訴有所攀升。"
+
+        ops_cur = set(m_data['operator'].unique()) - {'Unknown'}
+        ops_prev = set(prev_m_data['operator'].unique()) - {'Unknown'} if prev_m else set()
+        new_ops = ops_cur - ops_prev
+        if new_ops:
+            mkt_str = f"🎯 發現新插旗訊號！營辦商 【{', '.join(list(new_ops)[:2])}】 本月首度在社群爆發討論。"
+        else:
+            top_ops = m_data['operator'].value_counts()
+            top_ops = top_ops[top_ops.index != 'Unknown']
+            mkt_str = f"🤝 充電格局穩健。熱門提及品牌為 【{', '.join(top_ops.index[:2])}】。" if not top_ops.empty else "🤝 本月市佔格局基本穩健。"
 
         monthly_insights_db[m] = {
-            "volume": cur_vol,
-            "volume_badge": vol_badge,
-            "theme_distribution": theme_dist,
-            "risks": risks_uniq[:4] if risks_uniq else ["🟢 本月未偵測到明顯風險"],
-            "opportunities": opps_uniq[:4] if opps_uniq else ["🟢 本月未偵測到明顯市場機會"]
+            "volume_title": f"總聲量 {cur_vol} 筆 ({pct_str})",
+            "volume_count": f"{cur_vol} 筆",
+            "volume_badge": pct_str,
+            "negative_title": neg_theme_str,
+            "negative_text": neg_detail_str,
+            "top_theme": top_theme,
+            "market_text": mkt_str
         }
 
     # 1.4 Sentiment trend
@@ -267,7 +179,7 @@ def load_and_process():
             "source": row["source"],
             "operator": row["operator"],
             "sentiment": row["sentiment"],
-            "location": row["location"] if row["location"] and row["location"] not in ["未提及", " ", ""] else "Unknown",
+            "location": row["location"],
             "theme": row["theme"],
             "charge_type": row["charge_type"],
             "landlord": row["landlord"] if row["landlord"] != "未提及" else "未知場主",
@@ -330,7 +242,7 @@ html_template = """<!DOCTYPE html>
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>EV Charging Insight Dashboard</title>
+    <title>HK EV Charging Insight Dashboard</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js"></script>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
@@ -352,7 +264,7 @@ html_template = """<!DOCTYPE html>
 
     <header class="mb-6 p-5 rounded-2xl glass-card flex flex-col md:flex-row justify-between items-start md:items-center border-l-8 border-[#5e5843]">
         <div>
-            <h1 class="text-2xl font-bold tracking-tight text-[#2b271d]">🌐 EV Charging Insight Dashboard</h1>
+            <h1 class="text-2xl font-bold tracking-tight text-[#2b271d]">🌐 HK EV Charging Premium Business Dashboard</h1>
         </div>
         <div class="flex flex-wrap items-center gap-2 mt-3 md:mt-0 max-w-3xl">
             <div id="statusTheme" class="filter-badge">🎯 主題: 全部</div>
@@ -430,8 +342,8 @@ html_template = """<!DOCTYPE html>
     <div class="glass-card p-5 rounded-2xl mb-6">
         <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-4 border-b border-gray-100 pb-3">
             <div>
-                <h2 class="text-sm font-bold text-gray-700 border-l-4 border-[#8c7e5a] pl-2">📋 本月話題總覽</h2>
-                <p class="text-[11px] text-gray-400 mt-0.5">切換月份檢視主題分佈、風險與機會洞察</p>
+                <h2 class="text-sm font-bold text-gray-700 border-l-4 border-[#8c7e5a] pl-2">📈 MoM 核心商情環比異動監控 (動態智慧解碼)</h2>
+                <p class="text-[11px] text-gray-400 mt-0.5">切換觀測月份，解碼當月的輿情焦點事件與情緒滾動線</p>
             </div>
             <div class="flex items-center gap-2">
                 <label class="text-xs font-semibold text-gray-500 whitespace-nowrap">觀測月份:</label>
@@ -439,27 +351,25 @@ html_template = """<!DOCTYPE html>
             </div>
         </div>
 
-        <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
-            <div class="mom-card p-4 rounded-xl">
-                <div class="flex items-center justify-between">
-                    <span class="text-[11px] font-bold text-gray-400 uppercase tracking-wider">📊 本月主題分佈</span>
-                    <span id="themeBarTitle" class="text-[10px] text-gray-500 font-mono"></span>
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <div class="lg:col-span-2 grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div class="mom-card p-4 rounded-xl flex flex-col justify-between">
+                    <div><span class="text-[11px] font-bold text-gray-400 uppercase tracking-wider block">📢 輿情聲量環比</span></div>
+                    <div class="flex items-baseline justify-between mt-2">
+                        <span id="momVolumeCount" class="text-2xl font-mono font-bold text-slate-800">-- 筆</span>
+                        <span id="momVolumeBadge" class="text-xs font-bold px-2 py-0.5 rounded-full">--</span>
+                    </div>
                 </div>
-                <div id="themeBarContainer" class="mt-2 space-y-1 text-[11px]"></div>
-            </div>
-            <div class="mom-card p-4 rounded-xl border-t-4 border-t-red-500">
-                <span class="text-[11px] font-bold text-red-600 uppercase tracking-wider block">⚠️ 本月風險預警</span>
-                <div id="momRiskText" class="mt-2 text-xs text-gray-600 leading-relaxed font-medium">正在載入...</div>
-            </div>
-            <div class="mom-card p-4 rounded-xl border-t-4 border-t-emerald-500">
-                <span class="text-[11px] font-bold text-emerald-600 uppercase tracking-wider block">✅ 本月市場機會</span>
-                <div id="momOpportunityText" class="mt-2 text-xs text-gray-600 leading-relaxed font-medium">正在載入...</div>
-            </div>
-        </div>
-        <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 mt-4">
-            <div class="bg-[#faf9f5] p-3 rounded-xl border border-[#dcd7bc]">
-                <span class="text-[11px] font-bold text-gray-500 uppercase tracking-wider block mb-1">📊 主題滾動趨勢 (近6月)</span>
-                <div id="themeTrendChart" style="width: 100%; height: 110px;"></div>
+                <div class="mom-card p-4 rounded-xl flex flex-col justify-between border-t-4 border-t-red-600">
+                    <div><span id="momNegativeTitle" class="text-[11px] font-bold text-red-500 uppercase tracking-wider block">⚠️ 負面吐槽焦點</span>
+                        <p id="momNegativeText" class="text-xs text-gray-600 mt-2 leading-relaxed font-medium">正在載入數據焦點...</p>
+                    </div>
+                </div>
+                <div class="mom-card p-4 rounded-xl flex flex-col justify-between border-t-4 border-t-indigo-600">
+                    <div><span class="text-[11px] font-bold text-indigo-600 uppercase tracking-wider block">🤝 競爭格局訊號</span>
+                        <p id="momMarketText" class="text-xs text-gray-600 mt-2 leading-relaxed font-medium">正在對比捕捉...</p>
+                    </div>
+                </div>
             </div>
             <div class="bg-[#faf9f5] p-3 rounded-xl border border-[#dcd7bc]">
                 <span id="trendChartTitle" class="text-[11px] font-bold text-gray-500 uppercase tracking-wider block mb-1">🟢 🟡 🔴 滾動情緒趨勢</span>
@@ -537,9 +447,7 @@ html_template = """<!DOCTYPE html>
             "荃灣": [22.3686, 114.1131], "元朗": [22.4456, 114.0222], "將軍澳": [22.3121, 114.2589],
             "屯門": [22.3964, 113.9743], "九龍灣": [22.3225, 114.2115], "紅磡": [22.3020, 114.1843],
             "大角咀": [22.3218, 114.1601], "深水埗": [22.3286, 114.1603], "金鐘": [22.2783, 114.1645],
-            "東涌": [22.2882, 113.9422], "火炭": [22.3956, 114.1953], "啟德": [22.3222, 114.2056],
-            "Yoho Mall": [22.4454, 114.0351], "朗壹廣場": [22.4508, 114.0294],
-            "屏山": [22.4437, 114.0150], "千色匯": [22.4427, 114.0285]
+            "東涌": [22.2882, 113.9422], "火炭": [22.3956, 114.1953], "啟德": [22.3222, 114.2056]
         };
 
         let selectedOperators = []; let clickedTheme = null; let clickedLocation = null;
@@ -549,7 +457,6 @@ html_template = """<!DOCTYPE html>
         let barChart = echarts.init(document.getElementById('barChart'));
         let donutChart = echarts.init(document.getElementById('donutChart'));
         let trendLineChart = echarts.init(document.getElementById('trendLineChart'));
-        let themeTrendChart = echarts.init(document.getElementById('themeTrendChart'));
         let operatorsFullTimelineChart = echarts.init(document.getElementById('operatorsFullTimelineChart'));
         let operatorSentimentStackChart = echarts.init(document.getElementById('operatorSentimentStackChart'));
 
@@ -573,13 +480,7 @@ html_template = """<!DOCTYPE html>
                     if (cb) { cb.checked = !cb.checked; handleOperatorChange(); }
                 }
             });
-            document.addEventListener('click', function(e) {
-                const btn = e.target.closest('.intel-btn');
-                if (btn) {
-                    openIntelPanel(btn.dataset.id, btn.dataset.summary, btn.dataset.impact, btn.dataset.insight);
-                }
-            });
-            window.addEventListener('resize', () => { barChart.resize(); donutChart.resize(); trendLineChart.resize(); themeTrendChart.resize(); operatorsFullTimelineChart.resize(); operatorSentimentStackChart.resize(); });
+            window.addEventListener('resize', () => { barChart.resize(); donutChart.resize(); trendLineChart.resize(); operatorsFullTimelineChart.resize(); operatorSentimentStackChart.resize(); });
         });
 
         function initLeafletMap() {
@@ -589,17 +490,11 @@ html_template = """<!DOCTYPE html>
             markerGroup = L.layerGroup().addTo(map);
         }
 
-        function createMapIcon(color, isSelected, count, isUnknown) {
-            const size = isSelected ? 40 : 32;
-            const opacity = isUnknown ? 0.45 : 1;
-            const strokeW = isSelected ? 3 : 2;
-            const numSize = count > 99 ? 10 : count > 9 ? 12 : 14;
-            const html = `<svg width="${size}" height="${size}" viewBox="0 0 32 32" fill="none">
-                <circle cx="16" cy="16" r="14" fill="${color}" fill-opacity="${opacity}" 
-                    stroke="${isSelected ? '#000' : '#fff'}" stroke-width="${strokeW}"/>
-                <text x="16" y="19" text-anchor="middle" fill="white" font-size="${numSize}" 
-                    font-weight="bold" font-family="monospace">${count}</text>
-            </svg>`;
+        function createMapIcon(color, isSelected) {
+            const size = isSelected ? 35 : 26;
+            const strokeColor = isSelected ? "#000000" : "#ffffff";
+            const strokeW = isSelected ? 3 : 1.5;
+            const html = `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none"><path d="M12 2C8.13 2 5 5.13 5 9C5 14.25 12 22 12 22C12 22 19 14.25 19 9C19 5.13 15.87 2 12 2Z" fill="${color}" stroke="${strokeColor}" stroke-width="${strokeW}"/><path d="M11.5 6L8.5 11H12.5L11.5 16L15.5 10H11.5L11.5 6Z" fill="white"/></svg>`;
             return L.divIcon({ html: html, className: '', iconSize: [size, size], iconAnchor: [size/2, size] });
         }
 
@@ -614,60 +509,13 @@ html_template = """<!DOCTYPE html>
             const currentMonth = document.getElementById('monthSelector').value;
             const info = monthlyInsights[currentMonth];
             if (!info) return;
-            
-            // Theme distribution bar chart with MoM arrows
-            const themeColors = {"充電疑問":"#5e5843","價格動態":"#2d6662","站點情報":"#a34d43","其他無關":"#616161","服務問題":"#d67a2a","車位佔用":"#4a86b8"};
-            const dist = info.theme_distribution || {};
-            const themeOrder = ["充電疑問","價格動態","站點情報","服務問題","車位佔用","其他無關"];
-            // Previous month for comparison
-            const allMs = Object.keys(monthlyInsights).sort();
-            const curIdx = allMs.indexOf(currentMonth);
-            const prevMn = curIdx > 0 ? allMs[curIdx - 1] : null;
-            const prevDist = prevMn ? (monthlyInsights[prevMn].theme_distribution || {}) : {};
-            let barHtml = '';
-            let maxVal = Math.max(...Object.values(dist), 1);
-            themeOrder.forEach(t => {
-                const currVal = dist[t] || 0;
-                const prevVal = prevDist[t] || 0;
-                const diff = currVal - prevVal;
-                const pct = (currVal / maxVal) * 100;
-                let diffHtml;
-                if (diff > 0) {
-                    diffHtml = `<span class="text-green-600 font-bold text-[10px]">↑+${diff}</span>`;
-                } else if (diff < 0) {
-                    diffHtml = `<span class="text-red-500 font-bold text-[10px]">↓${diff}</span>`;
-                } else {
-                    diffHtml = `<span class="text-gray-300 font-bold text-[10px]">—</span>`;
-                }
-                barHtml += `<div class="flex items-center gap-1">
-                    <span class="w-14 text-right text-gray-500 font-medium truncate text-[10px]">${t}</span>
-                    <div class="flex-1 h-2.5 bg-gray-100 rounded-full overflow-hidden">
-                        <div class="h-full rounded-full" style="width:${Math.max(pct,1.5)}%;background:${themeColors[t]||'#999'}"></div>
-                    </div>
-                    <span class="w-5 text-right font-mono font-bold text-gray-700 text-[10px]">${currVal}</span>
-                    ${diffHtml}
-                </div>`;
-            });
-            document.getElementById('themeBarContainer').innerHTML = barHtml;
-            
-            // Volume summary beside title
-            const volClass = info.volume_badge.includes('-') ? 'text-red-500' : info.volume_badge === '基準月' ? 'text-gray-400' : 'text-green-600';
-            document.getElementById('themeBarTitle').innerHTML = 
-                `<span class="font-bold">${info.volume}</span> 筆 <span class="${volClass}">${info.volume_badge}</span>`;
-            
-            // Risks
-            const risks = info.risks || ["🟢 本月未偵測到明顯風險"];
-            document.getElementById('momRiskText').innerHTML = risks.map(r =>
-                `<div class="flex items-start gap-1.5 mb-1.5 text-xs text-gray-600 leading-relaxed">${r}</div>`
-            ).join('');
-            
-            // Opportunities
-            const opportunities = info.opportunities || ["🟢 本月未偵測到明顯市場機會"];
-            document.getElementById('momOpportunityText').innerHTML = opportunities.map(o =>
-                `<div class="flex items-start gap-1.5 mb-1.5 text-xs text-gray-600 leading-relaxed">${o}</div>`
-            ).join('');
-            
-            // Sentiment trend (keep existing)
+            document.getElementById('momVolumeCount').textContent = info.volume_count;
+            const vBadge = document.getElementById('momVolumeBadge');
+            vBadge.textContent = info.volume_badge;
+            vBadge.className = info.volume_badge.includes('-') ? "bg-red-50 text-red-700 border border-red-200 px-2 py-0.5 rounded-full" : "bg-green-50 text-green-700 border border-green-200 px-2 py-0.5 rounded-full";
+            document.getElementById('momNegativeTitle').textContent = info.negative_title;
+            document.getElementById('momNegativeText').innerHTML = info.negative_text;
+            document.getElementById('momMarketText').innerHTML = info.market_text;
             const allMonthsSorted = Object.keys(monthlyInsights).sort();
             const currIdx = allMonthsSorted.indexOf(currentMonth);
             const startIdx = Math.max(0, currIdx - 5);
@@ -691,32 +539,6 @@ html_template = """<!DOCTYPE html>
                     { name: 'Neutral', type: 'line', data: neuData, smooth: true, itemStyle: { color: '#ca8a04' } },
                     { name: 'Negative', type: 'line', data: negData, smooth: true, itemStyle: { color: '#dc2626' } }
                 ]
-            }, true);
-
-            // Theme trend chart — last 6 months per-theme volume
-            const themeTrendSeries = themeOrder.map(t => {
-                const data = rollingMonths.map(m => {
-                    const d = monthlyInsights[m] ? monthlyInsights[m].theme_distribution || {} : {};
-                    return d[t] || 0;
-                });
-                return {
-                    name: t,
-                    type: 'line',
-                    data: data,
-                    smooth: true,
-                    symbol: 'circle',
-                    symbolSize: 4,
-                    lineStyle: { width: 1.5 },
-                    itemStyle: { color: themeColors[t] || '#999' }
-                };
-            });
-            themeTrendChart.setOption({
-                tooltip: { trigger: 'axis' },
-                legend: { show: false },
-                grid: { top: 15, bottom: 20, left: 30, right: 10 },
-                xAxis: { type: 'category', data: rollingMonths, axisLabel: { fontSize: 9 } },
-                yAxis: { type: 'value', minInterval: 1, splitLine: { show: false }, axisLabel: { fontSize: 8 } },
-                series: themeTrendSeries
             }, true);
         }
 
@@ -814,7 +636,7 @@ html_template = """<!DOCTYPE html>
                 if (mappedLoc) { if (!grouped[mappedLoc]) grouped[mappedLoc] = { total: 0, theme: item.theme }; grouped[mappedLoc].total++; }
             });
             Object.entries(grouped).forEach(([locName, info]) => {
-                const marker = L.marker(locationCoords[locName], { icon: createMapIcon(themeColors[info.theme] || fallbackMapColor, (clickedLocation === locName), info.total, false) });
+                const marker = L.marker(locationCoords[locName], { icon: createMapIcon(themeColors[info.theme] || fallbackMapColor, (clickedLocation === locName)) });
                 marker.bindTooltip(`<b>${locName}</b>: ${info.total} 筆`, { direction: 'top', offset: [0, -10] });
                 marker.on('click', () => { clickedLocation = (clickedLocation === locName) ? null : locName; currentPage = 1; renderDashboard(); });
                 markerGroup.addLayer(marker);
@@ -875,8 +697,10 @@ html_template = """<!DOCTYPE html>
                 else if (item.theme === "車位佔用") themeBadgeColor = "bg-blue-50 text-blue-700 border-blue-200";
                 let intelButton = '<span class="text-gray-300 font-serif font-light text-center block">-</span>';
                 if (item.has_intel) {
-                    const esc = s => s.replace(/"/g, '&quot;').replace(/'/g, '&#39;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-                    intelButton = `<button data-id="${esc(item.id)}" data-summary="${esc(item.summary)}" data-impact="${esc(item.user_impact)}" data-insight="${esc(item.comp_insight)}" class="intel-btn bg-amber-100 hover:bg-amber-200 text-amber-800 font-bold px-2.5 py-1 rounded-lg flex items-center gap-1 transition-all border border-amber-300 shadow-sm mx-auto animate-pulse"><span>💡</span> <span class="text-[10px]">解碼</span></button>`;
+                    const safeSummary = item.summary.replace(/'/g, "\\\\'").replace(/"/g, '\\\\"');
+                    const safeImpact = item.user_impact.replace(/'/g, "\\\\'").replace(/"/g, '\\\\"');
+                    const safeInsight = item.comp_insight.replace(/'/g, "\\\\'").replace(/"/g, '\\\\"');
+                    intelButton = `<button onclick="openIntelPanel('${item.id}', '${safeSummary}', '${safeImpact}', '${safeInsight}')" class="bg-amber-100 hover:bg-amber-200 text-amber-800 font-bold px-2.5 py-1 rounded-lg flex items-center gap-1 transition-all border border-amber-300 shadow-sm mx-auto animate-pulse"><span>💡</span> <span class="text-[10px]">解碼</span></button>`;
                 }
                 tr.innerHTML = `
                     <td class="p-3 text-gray-400 font-mono font-medium whitespace-nowrap"><a href="${item.post_url}" target="_blank" class="text-blue-600 hover:underline font-bold">${item.id} 🔗</a></td>
@@ -885,7 +709,7 @@ html_template = """<!DOCTYPE html>
                     <td class="p-3 font-medium text-slate-700 max-w-[140px] break-words"><div class="font-bold">${item.operator}</div><div class="text-[10px] text-gray-400 mt-0.5">場主: ${item.landlord}</div></td>
                     <td class="p-3 whitespace-nowrap"><span class="${themeBadgeColor} border px-2 py-0.5 rounded-md font-bold text-[10px]">${item.theme}</span></td>
                     <td class="p-3 whitespace-nowrap">${sentBadge}</td>
-                    <td class="p-3 text-gray-600 font-bold w-[100px] min-w-[100px] max-w-[100px] break-all whitespace-normal">${item.location === 'Unknown' ? '<span class="text-gray-300 font-normal">Unknown</span>' : item.location}</td>
+                    <td class="p-3 text-gray-600 font-bold w-[100px] min-w-[100px] max-w-[100px] break-all whitespace-normal">${item.location || '<span class="text-gray-300 font-normal">Unknown</span>'}</td>
                     <td class="p-3 break-words text-justify whitespace-normal w-full min-w-[360px]">${item.text_html}</td>
                     <td class="p-3 text-center vertical-align-middle whitespace-nowrap">${intelButton}</td>
                 `;
@@ -900,22 +724,11 @@ html_template = """<!DOCTYPE html>
             document.getElementById('panelUserImpact').textContent = userImpact;
             document.getElementById('panelCompInsight').textContent = compInsight;
             const panel = document.getElementById('rightIntelPanel');
-            // Position at current viewport: get parent scroll offset from iframe position
-            try {
-                const iframeRect = window.frameElement.getBoundingClientRect();
-                panel.style.position = 'absolute';
-                panel.style.top = Math.max(0, -iframeRect.top) + 'px';
-            } catch(e) {
-                panel.style.position = 'fixed';
-                panel.style.top = '0';
-            }
             panel.classList.remove('translate-x-full'); panel.classList.add('translate-x-0');
         }
 
         function closeIntelPanel() {
             const panel = document.getElementById('rightIntelPanel');
-            panel.style.position = '';
-            panel.style.top = '';
             panel.classList.remove('translate-x-0'); panel.classList.add('translate-x-full');
         }
 
