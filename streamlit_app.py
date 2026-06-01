@@ -300,15 +300,9 @@ def load_and_process():
         for m in months_list:
             operators_monthly_full_matrix[op][m] = int(len(df[(df['operator'] == op) & (df['month_str'] == m)]))
 
-    # Landlords (unique, exclude Unknown/empty, sort)
-    unique_landlords = sorted([l for l in df['landlord'].unique() if l and l not in ['Unknown', '未知場主', 'nan', '']])
-    if unique_landlords and '未知場主' in df['landlord'].unique():
-        unique_landlords = unique_landlords  # keep as-is
-    
     return {
         "records": clean_records,
         "operators": unique_operators,
-        "landlords": unique_landlords,
         "monthly_insights": monthly_insights_db,
         "trend_dataset": trend_dataset_db,
         "months": months_list,
@@ -323,7 +317,6 @@ data = load_and_process()
 
 json_dataset = json.dumps(data["records"], ensure_ascii=False)
 json_operators = json.dumps(data["operators"], ensure_ascii=False)
-json_landlords = json.dumps(data["landlords"], ensure_ascii=False)
 json_monthly_insights = json.dumps(data["monthly_insights"], ensure_ascii=False)
 json_trend_dataset = json.dumps(data["trend_dataset"], ensure_ascii=False)
 json_all_months = json.dumps(data["months"], ensure_ascii=False)
@@ -366,9 +359,7 @@ html_template = """<!DOCTYPE html>
             <div id="statusOperator" class="filter-badge">⚡ 營辦商: 全部</div>
             <div id="statusDate" class="filter-badge">📅 期間: 全部</div>
             <div id="statusLocation" class="filter-badge">📍 地點: 全部</div>
-            <div id="statusLandlord" class="filter-badge">🏢 業主: 全部</div>
             <div id="totalNumBadge" class="text-sm bg-[#5e5843]/10 text-[#5e5843] px-4 py-1 rounded-full border border-[#5e5843]/30 font-mono font-bold">Total: -- 筆</div>
-            <button onclick="resetAllFilters()" class="text-[10px] bg-gray-100 hover:bg-gray-200 text-gray-600 font-bold px-3 py-1.5 rounded-lg border border-gray-200 transition-all whitespace-nowrap">🔄 一鍵重置</button>
         </div>
     </header>
 
@@ -384,7 +375,7 @@ html_template = """<!DOCTYPE html>
     </div>
 
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
-        <div class="glass-card p-5 rounded-2xl flex flex-col h-[360px]">
+        <div class="glass-card p-5 rounded-2xl flex flex-col justify-between h-[360px]">
             <div>
                 <h2 class="text-sm font-bold text-gray-700 mb-2 border-l-4 border-[#5e5843] pl-2">🎛️ 智能數據控制台</h2>
                 <div class="mb-2">
@@ -393,13 +384,6 @@ html_template = """<!DOCTYPE html>
                         <button onclick="clearOperatorSelection()" class="text-[10px] text-blue-600 hover:underline">清空</button>
                     </div>
                     <div id="operatorCheckboxContainer" class="bg-[#faf9f5] rounded-lg p-2 border border-[#dcd7bc] h-24 overflow-y-auto custom-scrollbar flex flex-col gap-1"></div>
-                </div>
-                <div class="mb-2">
-                    <div class="flex justify-between items-center mb-0.5">
-                        <label class="text-[11px] font-semibold text-gray-500">🏢 選擇業主 (多選)</label>
-                        <button onclick="clearLandlordSelection()" class="text-[10px] text-blue-600 hover:underline">清空</button>
-                    </div>
-                    <div id="landlordCheckboxContainer" class="bg-[#faf9f5] rounded-lg p-2 border border-[#dcd7bc] h-20 overflow-y-auto custom-scrollbar flex flex-col gap-1"></div>
                 </div>
                 <div class="mb-2">
                     <label class="block text-[11px] font-semibold text-gray-500 mb-0.5">📅 自訂觀測日期區間</label>
@@ -415,6 +399,7 @@ html_template = """<!DOCTYPE html>
                     </div>
                 </div>
             </div>
+            <button onclick="resetAllFilters()" class="w-full py-1.5 bg-gray-200 hover:bg-gray-300 text-gray-700 text-[11px] font-bold rounded-lg transition-all border border-gray-300 shadow-sm">🔄 一鍵重置所有篩選</button>
         </div>
 
         <div class="glass-card p-5 rounded-2xl lg:col-span-2 flex flex-col justify-between h-[360px]">
@@ -536,7 +521,6 @@ html_template = """<!DOCTYPE html>
     <script>
         const rawDataset = __RAW_DATASET__;
         const allOperators = __ALL_OPERATORS__;
-        const allLandlords = __ALL_LANDLORDS__;
         const monthlyInsights = __MONTHLY_INSIGHTS__;
         const trendDataset = __TREND_DATASET__;
         const allMonthsList = __ALL_MONTHS__;
@@ -556,7 +540,7 @@ html_template = """<!DOCTYPE html>
             "東涌": [22.2882, 113.9422], "火炭": [22.3956, 114.1953], "啟德": [22.3222, 114.2056]
         };
 
-        let selectedOperators = []; let selectedLandlords = []; let clickedTheme = null; let clickedLocation = null;
+        let selectedOperators = []; let clickedTheme = null; let clickedLocation = null;
         let currentPage = 1; const pageSize = 20; let currentlyFilteredData = [];
 
         let map = null; let markerGroup = null;
@@ -577,7 +561,6 @@ html_template = """<!DOCTYPE html>
             initLeafletMap();
             initMonthSelector();
             renderOperatorCheckboxes();
-            renderLandlordCheckboxes();
             renderDashboard();
             barChart.on('click', (p) => { if (p.componentType === 'series') { clickedTheme = (clickedTheme === p.name) ? null : p.name; currentPage = 1; renderDashboard(); } });
             donutChart.on('click', (p) => { if (p.componentType === 'series') { clickedTheme = (clickedTheme === p.name) ? null : p.name; currentPage = 1; renderDashboard(); } });
@@ -766,23 +749,9 @@ html_template = """<!DOCTYPE html>
             });
         }
 
-        function renderLandlordCheckboxes() {
-            const container = document.getElementById('landlordCheckboxContainer');
-            if (!container) return;
-            container.innerHTML = '';
-            allLandlords.forEach(ll => {
-                const div = document.createElement('div');
-                div.className = "flex items-center gap-2 text-xs text-gray-700";
-                div.innerHTML = `<input type="checkbox" id="ll_${ll}" value="${ll}" class="ll-checkbox w-4 h-4 rounded text-[#8c7e5a]" onchange="handleLandlordChange()"><label for="ll_${ll}" class="cursor-pointer font-medium">${ll} <span class="text-[10px] text-gray-400 font-mono" id="count_ll_${ll}">(0)</span></label>`;
-                container.appendChild(div);
-            });
-        }
-
         function handleOperatorChange() { selectedOperators = Array.from(document.querySelectorAll('.op-checkbox')).filter(cb => cb.checked).map(cb => cb.value); currentPage = 1; renderDashboard(); }
         function clearOperatorSelection() { document.querySelectorAll('.op-checkbox').forEach(cb => cb.checked = false); selectedOperators = []; currentPage = 1; renderDashboard(); }
-        function handleLandlordChange() { selectedLandlords = Array.from(document.querySelectorAll('.ll-checkbox')).filter(cb => cb.checked).map(cb => cb.value); currentPage = 1; renderDashboard(); }
-        function clearLandlordSelection() { document.querySelectorAll('.ll-checkbox').forEach(cb => cb.checked = false); selectedLandlords = []; currentPage = 1; renderDashboard(); }
-        function resetAllFilters() { clearOperatorSelection(); clearLandlordSelection(); clickedTheme = null; clickedLocation = null; document.getElementById('dateStart').value = absoluteMinDate; document.getElementById('dateEnd').value = absoluteMaxDate; currentPage = 1; renderDashboard(); }
+        function resetAllFilters() { clearOperatorSelection(); clickedTheme = null; clickedLocation = null; document.getElementById('dateStart').value = absoluteMinDate; document.getElementById('dateEnd').value = absoluteMaxDate; currentPage = 1; renderDashboard(); }
         function clearMapFilter() { clickedLocation = null; currentPage = 1; renderDashboard(); }
 
         function renderDashboard() {
@@ -792,14 +761,12 @@ html_template = """<!DOCTYPE html>
                 let matchLoc = true;
                 if (clickedLocation) { matchLoc = item.location.includes(clickedLocation); }
                 return ((selectedOperators.length === 0) ? true : selectedOperators.includes(item.operator)) &&
-                       ((selectedLandlords.length === 0) ? true : selectedLandlords.includes(item.landlord)) &&
                        (clickedTheme ? (item.theme === clickedTheme) : true) &&
                        matchLoc && (item.time >= startDate && item.time <= endDate);
             });
             document.getElementById('totalNumBadge').textContent = `Total: ${currentlyFilteredData.length} 筆`;
             document.getElementById('statusTheme').textContent = clickedTheme ? `🎯 主題: ${clickedTheme}` : "🎯 主題: 全部";
             document.getElementById('statusOperator').textContent = (selectedOperators.length > 0) ? `⚡ 營辦商: ${selectedOperators.join(', ')}` : "⚡ 營辦商: 全部";
-            document.getElementById('statusLandlord').textContent = (selectedLandlords.length > 0) ? `🏢 業主: ${selectedLandlords.join(', ')}` : "🏢 業主: 全部";
             document.getElementById('statusDate').textContent = `📅 期間: ${startDate} 至 ${endDate}`;
             document.getElementById('statusLocation').textContent = clickedLocation ? `📍 地點: ${clickedLocation}` : "📍 地點: 全部";
             updateConsoleIntelligence(startDate, endDate);
@@ -814,11 +781,6 @@ html_template = """<!DOCTYPE html>
             allOperators.forEach(op => {
                 let count = rawDataset.filter(item => (clickedTheme ? (item.theme === clickedTheme) : true) && item.time >= start && item.time <= end && item.operator === op).length;
                 const countSpan = document.getElementById(`count_op_${op}`);
-                if (countSpan) countSpan.textContent = `(${count})`;
-            });
-            allLandlords.forEach(ll => {
-                let count = rawDataset.filter(item => (clickedTheme ? (item.theme === clickedTheme) : true) && item.time >= start && item.time <= end && item.landlord === ll).length;
-                const countSpan = document.getElementById(`count_ll_${ll}`);
                 if (countSpan) countSpan.textContent = `(${count})`;
             });
         }
@@ -963,7 +925,6 @@ html_template = """<!DOCTYPE html>
 # ── Inject data into template ──
 output_html = html_template.replace("__RAW_DATASET__", json_dataset)
 output_html = output_html.replace("__ALL_OPERATORS__", json_operators)
-output_html = output_html.replace("__ALL_LANDLORDS__", json_landlords)
 output_html = output_html.replace("__MONTHLY_INSIGHTS__", json_monthly_insights)
 output_html = output_html.replace("__TREND_DATASET__", json_trend_dataset)
 output_html = output_html.replace("__ALL_MONTHS__", json_all_months)
