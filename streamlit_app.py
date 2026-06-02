@@ -674,8 +674,6 @@ const chargerColors = {
             startInput.addEventListener('change', () => { currentPage = 1; renderDashboard(); });
             endInput.addEventListener('change', () => { currentPage = 1; renderDashboard(); });
             // Also re-render charger map when filters change
-            const origRD = renderDashboard;
-            renderDashboard = function() { origRD(); if (typeof updateStationMap === 'function') setTimeout(function() { updateStationMap(document.getElementById('districtFilter').value); }, 100); };
             initStationMap();
             initMonthSelector();
             renderOperatorCheckboxes();
@@ -867,8 +865,8 @@ const chargerColors = {
             });
         }
 
-        function handleOperatorChange() { selectedOperators = Array.from(document.querySelectorAll('.op-checkbox')).filter(cb => cb.checked).map(cb => cb.value); currentPage = 1; renderDashboard(); }
-        function clearOperatorSelection() { document.querySelectorAll('.op-checkbox').forEach(cb => cb.checked = false); selectedOperators = []; currentPage = 1; renderDashboard(); }
+        function handleOperatorChange() { selectedOperators = Array.from(document.querySelectorAll('.op-checkbox')).filter(cb => cb.checked).map(cb => cb.value); currentPage = 1; renderDashboard(); if (typeof updateStationMap === 'function') updateStationMap(document.getElementById('districtFilter').value); }
+        function clearOperatorSelection() { document.querySelectorAll('.op-checkbox').forEach(cb => cb.checked = false); selectedOperators = []; currentPage = 1; renderDashboard(); if (typeof updateStationMap === 'function') updateStationMap(document.getElementById('districtFilter').value); }
         function resetAllFilters() { clearOperatorSelection(); clickedTheme = null; clickedLocation = null; clickedStation = null; clickedStationLoc = null; clickedStationProv = null; document.getElementById('districtFilter').value = 'all'; currentPage = 1; renderDashboard(); }
         function clearMapFilter() { clickedLocation = null; clickedStation = null; clickedStationLoc = null; clickedStationProv = null; document.getElementById('districtFilter').value = 'all'; currentPage = 1; renderDashboard(); }
 
