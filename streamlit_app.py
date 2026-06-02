@@ -427,6 +427,13 @@ html_template = """<!DOCTYPE html>
         </div>
     </div>
 
+    <!-- 🗺️ CHARGER STATION MAP (from Carpark Hero data) -->
+    <div class="glass-card p-5 rounded-2xl mb-6">
+        <h2 class="text-sm font-bold text-gray-700 mb-3 border-l-4 border-[#5e5843] pl-2">⚡ 全港充電站分佈 (Carpark Hero 數據)</h2>
+        <div id="chargerMap" style="width: 100%; height: 380px;" class="rounded-xl border border-[#dcd7bc]"></div>
+        <div id="chargerMapLegend" class="flex flex-wrap gap-3 mt-2 text-[10px] text-gray-500"></div>
+    </div>
+
     <div class="glass-card p-5 rounded-2xl mb-6">
         <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-4 border-b border-gray-100 pb-3">
             <div>
@@ -527,6 +534,15 @@ html_template = """<!DOCTYPE html>
         const operatorsMonthlyMatrix = __OPERATORS_MONTHLY_MATRIX__;
         const absoluteMinDate = '__MIN_DATE__';
         const absoluteMaxDate = '__MAX_DATE__';
+const chargerStationData = __CHARGER_DATA__;
+const chargerColors = {
+    'Tesla': '#cc0000', 'SHKP The Point': '#8B4513', '三號電站': '#2d6662',
+    '易充站 E-Charge': '#DAA520', '基石科技 Cornerstone Technologies': '#4169E1',
+    '中電 CLP': '#0066CC', 'Shell Recharge': '#FFD700', 'Halo Energy': '#20B2AA',
+    'Jove': '#9370DB', 'Kineta': '#FF69B4', '充美好': '#32CD32',
+    'evMega 舒麥加': '#00CED1', 'Autotoll VGo': '#708090',
+    '中石化': '#DC143C', 'Crazy Charge': '#FF4500', '其他': '#999999'
+};
 
         const themeColors = { "充電疑問": "#5e5843", "價格動態": "#2d6662", "站點情報": "#a34d43", "其他無關": "#616161", "服務問題": "#d67a2a", "車位佔用": "#4a86b8" };
         const fallbackMapColor = "#78756c";
@@ -537,7 +553,19 @@ html_template = """<!DOCTYPE html>
             "荃灣": [22.3686, 114.1131], "元朗": [22.4456, 114.0222], "將軍澳": [22.3121, 114.2589],
             "屯門": [22.3964, 113.9743], "九龍灣": [22.3225, 114.2115], "紅磡": [22.3020, 114.1843],
             "大角咀": [22.3218, 114.1601], "深水埗": [22.3286, 114.1603], "金鐘": [22.2783, 114.1645],
-            "東涌": [22.2882, 113.9422], "火炭": [22.3956, 114.1953], "啟德": [22.3222, 114.2056]
+            "東涌": [22.2882, 113.9422], "火炭": [22.3956, 114.1953], "啟德": [22.3222, 114.2056],
+            "新蒲崗": [22.3367, 114.1984], "青衣": [22.3540, 114.1070], "葵涌": [22.3610, 114.1300],
+            "美孚": [22.3370, 114.1380], "粉嶺": [22.4910, 114.1390], "馬鞍山": [22.4250, 114.2280],
+            "筲箕灣": [22.2810, 114.2300], "北角": [22.2910, 114.2000], "灣仔": [22.2790, 114.1710],
+            "長沙灣": [22.3360, 114.1530], "黃大仙": [22.3420, 114.1950], "大埔": [22.4520, 114.1700],
+            "牛頭角": [22.3160, 114.2180], "油塘": [22.2960, 114.2380], "柴灣": [22.2640, 114.2390],
+            "荔枝角": [22.3360, 114.1450], "藍田": [22.3100, 114.2330], "西貢": [22.3820, 114.2750],
+            "赤柱": [22.2190, 114.2100], "淺水灣": [22.2360, 114.2000], "香港仔": [22.2480, 114.1580],
+            "薄扶林": [22.2610, 114.1360], "山頂": [22.2730, 114.1500], "天后": [22.2860, 114.1920],
+            "鴨脷洲": [22.2440, 114.1580], "鑽石山": [22.3400, 114.2030], "樂富": [22.3370, 114.1880],
+            "九龍城": [22.3280, 114.1880], "上環": [22.2860, 114.1500], "堅尼地城": [22.2820, 114.1290],
+            "佐敦": [22.3050, 114.1720], "油麻地": [22.3120, 114.1710], "何文田": [22.3140, 114.1800],
+            "九龍塘": [22.3370, 114.1760], "土瓜灣": [22.3160, 114.1900], "南昌": [22.3260, 114.1550]
         };
 
         let selectedOperators = []; let clickedTheme = null; let clickedLocation = null;
@@ -558,7 +586,11 @@ html_template = """<!DOCTYPE html>
             endInput.value = absoluteMaxDate; endInput.min = absoluteMinDate; endInput.max = absoluteMaxDate;
             startInput.addEventListener('change', () => { currentPage = 1; renderDashboard(); });
             endInput.addEventListener('change', () => { currentPage = 1; renderDashboard(); });
+            // Also re-render charger map when filters change
+            const origRD = renderDashboard;
+            renderDashboard = function() { origRD(); if (typeof updateChargerMap === 'function') setTimeout(updateChargerMap, 100); };
             initLeafletMap();
+            initChargerMap();
             initMonthSelector();
             renderOperatorCheckboxes();
             renderDashboard();
@@ -921,7 +953,76 @@ html_template = """<!DOCTYPE html>
         }
 
         function changePage(direction) { currentPage += direction; updateTablePage(); }
-    </script>
+    
+let chargerMap = null;
+let chargerMarkers = null;
+
+function initChargerMap() {
+    chargerMap = L.map('chargerMap', { zoomControl: false }).setView([22.3193, 114.1694], 11);
+    L.control.zoom({ position: 'bottomright' }).addTo(chargerMap);
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png').addTo(chargerMap);
+    chargerMarkers = L.layerGroup().addTo(chargerMap);
+    updateChargerMap();
+    const uniqueProvs = [...new Set(chargerStationData.map(s => s.provider))];
+    const legendEl = document.getElementById('chargerMapLegend');
+    uniqueProvs.slice(0, 15).forEach(p => {
+        const color = chargerColors[p] || '#999';
+        legendEl.innerHTML += `<span class="flex items-center gap-1"><span class="w-2.5 h-2.5 rounded-full inline-block" style="background:${color}"></span>${p}</span>`;
+    });
+    if (uniqueProvs.length > 15) legendEl.innerHTML += '<span class="text-gray-400">⋯ 等</span>';
+}
+
+function updateChargerMap() {
+    if (!chargerMap || !chargerMarkers) return;
+    chargerMarkers.clearLayers();
+    const grouped = {};
+    chargerStationData.forEach(s => {
+        if (!s.loc || s.loc === 'Unknown') return;
+        const coords = locationCoords[s.loc];
+        if (!coords) return;
+        if (!grouped[s.loc]) grouped[s.loc] = { stations: [], lat: coords[0], lng: coords[1] };
+        grouped[s.loc].stations.push(s);
+    });
+    Object.entries(grouped).forEach(([locName, info]) => {
+        const dc = info.stations.filter(s => s.type.includes('快速') || s.type.includes('快')).length;
+        const ac = info.stations.filter(s => s.type.includes('中速') || s.type.includes('慢')).length;
+        const total = info.stations.reduce((sum, s) => sum + s.count, 0);
+        const popupContent = `
+            <div style="font-size:12px;max-width:280px;">
+                <b style="font-size:14px;">📍 ${locName}</b><div style="margin:4px 0;border-top:1px solid #ddd;"></div>
+                <table style="width:100%;border-collapse:collapse;">
+                    <tr><td style="padding:2px 4px;color:#666;">總充電槍數</td><td style="padding:2px 4px;font-weight:bold;text-align:right;">${total}</td></tr>
+                    <tr><td style="padding:2px 4px;color:#666;">DC 快充站</td><td style="padding:2px 4px;font-weight:bold;text-align:right;">${dc}</td></tr>
+                    <tr><td style="padding:2px 4px;color:#666;">AC 中慢充站</td><td style="padding:2px 4px;font-weight:bold;text-align:right;">${ac}</td></tr>
+                </table>
+                <div style="margin:4px 0;border-top:1px solid #ddd;"></div>
+                <div style="max-height:160px;overflow-y:auto;">
+                ${info.stations.slice(0, 8).map(s => `
+                    <div style="padding:2px 0;border-bottom:1px solid #f0f0f0;">
+                        <div style="font-weight:bold;font-size:10px;">${s.name.slice(0, 35)}</div>
+                        <div style="font-size:9px;color:#666;">${s.provider} | ${s.type}${s.count ? ' | ' + s.count + '支' : ''}</div>
+                        <div style="font-size:8px;color:#999;">${s.address.slice(0, 40)}</div>
+                    </div>`).join('')}
+                ${info.stations.length > 8 ? `<div style="font-size:9px;color:#999;text-align:center;">+${info.stations.length - 8} more...</div>` : ''}
+                </div>
+            </div>`;
+        const marker = L.circleMarker([info.lat, info.lng], {
+            radius: Math.min(22, Math.max(7, Math.sqrt(total) * 1.8)),
+            color: chargerColors[info.stations[0].provider] || '#999',
+            fillColor: chargerColors[info.stations[0].provider] || '#999',
+            fillOpacity: 0.7, weight: 2, opacity: 0.9
+        });
+        marker.bindPopup(popupContent, { maxWidth: 300 });
+        marker.bindTooltip(`<b>${locName}</b>: ${total} 支槍`, { direction: 'top', offset: [0, -10] });
+        marker.on('click', () => {
+            clickedLocation = (clickedLocation === locName) ? null : locName;
+            currentPage = 1;
+            renderDashboard();
+        });
+        chargerMarkers.addLayer(marker);
+    });
+}
+</script>
 </body>
 </html>"""
 
@@ -934,6 +1035,47 @@ output_html = output_html.replace("__ALL_MONTHS__", json_all_months)
 output_html = output_html.replace("__OPERATORS_MONTHLY_MATRIX__", json_operators_monthly_matrix)
 output_html = output_html.replace("__MIN_DATE__", min_date)
 output_html = output_html.replace("__MAX_DATE__", max_date)
+
+# ── Inject charger station data ──
+import pandas as pd
+charger_path = r"C:\Users\User\Downloads\EV Charger List_data carpark hero May 2026.xlsx"
+try:
+    cp_df = pd.read_excel(charger_path, sheet_name='in')
+    # Same location list as JS locationCoords
+    loc_keys = ['尖沙咀','中環','銅鑼灣','旺角','觀塘','沙田','荃灣','元朗','將軍澳','屯門','九龍灣',
+                '紅磡','大角咀','深水埗','金鐘','東涌','火炭','啟德','新蒲崗','青衣','葵涌','美孚',
+                '粉嶺','馬鞍山','筲箕灣','北角','灣仔','長沙灣','黃大仙','大埔','牛頭角','油塘','柴灣',
+                '荔枝角','藍田','西貢','赤柱','淺水灣','香港仔','薄扶林','山頂','天后','鴨脷洲',
+                '鑽石山','樂富','九龍城','上環','堅尼地城','佐敦','油麻地','何文田','九龍塘','土瓜灣','南昌']
+    charger_stations = []
+    for _, row in cp_df.iterrows():
+        addr = str(row['Carpark Detail Address Revised']).strip() if pd.notna(row['Carpark Detail Address Revised']) else ''
+        name = str(row['Carpark Detail Name']).strip() if pd.notna(row['Carpark Detail Name']) else ''
+        provider = str(row['Charger Provider']).strip() if pd.notna(row['Charger Provider']) else ''
+        ctype = str(row['Charger Type']).strip() if pd.notna(row['Charger Type']) else ''
+        cdetail = str(row['Charger Type Details']).strip() if pd.notna(row['Charger Type Details']) else ''
+        count = int(row['Measure Values']) if pd.notna(row['Measure Values']) else 0
+        district = str(row['Carpark Detail District']).strip() if pd.notna(row['Carpark Detail District']) else ''
+        sub = str(row['Carpark Detail Sub-District']).strip() if pd.notna(row['Carpark Detail Sub-District']) else ''
+        
+        full_text = addr + ' ' + name + ' ' + district + ' ' + sub
+        matched_loc = None
+        for loc in loc_keys:
+            if loc in full_text:
+                matched_loc = loc
+                break
+        
+        if matched_loc:
+            charger_stations.append({
+                'loc': matched_loc, 'name': name, 'address': addr,
+                'provider': provider, 'type': ctype, 'detail': cdetail,
+                'count': count, 'district': district
+            })
+    
+    json_charger = json.dumps(charger_stations, ensure_ascii=False)
+    output_html = output_html.replace("__CHARGER_DATA__", json_charger)
+except Exception as e:
+    output_html = output_html.replace("__CHARGER_DATA__", "[]")
 
 # ── Render HTML in Streamlit (100% full page) ──
 st.components.v1.html(output_html, height=99999, scrolling=True)
