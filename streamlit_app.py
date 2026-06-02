@@ -555,17 +555,17 @@ html_template = """<!DOCTYPE html>
         const absoluteMaxDate = '__MAX_DATE__';
 const stationData = __STATION_DATA__;
 const sentData = __SENTIMENT_DATA__;
-// Only show stations at locations WITH posts
-const validLocs = new Set(Object.keys(sentData));
-const filteredStations = stationData.filter(s => validLocs.has(s.loc));
+// Only show stations that have posts matching their specific provider+location
+const validStationKeys = new Set(Object.keys(sentData));
+const filteredStations = stationData.filter(s => validStationKeys.has(s.loc + '|' + s.provider));
 const locList = [...new Set(filteredStations.map(s => s.loc))].sort();
 const distSel = document.getElementById('districtFilter');
 locList.forEach(l => { const o = document.createElement('option'); o.value = l; o.textContent = l; distSel.appendChild(o); });
 const tg = filteredStations.reduce((s, st) => s + st.total, 0);
 document.getElementById('stationSummary').textContent = `⚡ ${filteredStations.length} 站 | 🔌 ${tg} 槍 | 📍 ${locList.length} 區`;
 
-function getSentColor(loc) {
-    const d = sentData[loc];
+function getSentColor(loc, prov) {
+    const d = sentData[loc + '|' + prov];
     if (!d) return '#5e5843';
     if (d.pos > d.neg && d.pos > d.neu) return '#22c55e';
     if (d.neg > d.pos && d.neg > d.neu) return '#ef4444';
@@ -610,11 +610,12 @@ function updateStationMap(fl) {
             '<tr><td style=padding:1px 4px;color:#666;>AC 中慢充</td><td style=padding:1px 4px;font-weight:bold;text-align:right;>'+s.ac+' 支</td></tr>'+
             (s.tesla ? '<tr><td style=padding:1px 4px;color:#666;>Tesla 超充</td><td style=padding:1px 4px;font-weight:bold;text-align:right;>'+s.tesla+' 支</td></tr>' : '')+
             '<tr><td style=padding:1px 4px;color:#666;>總槍數</td><td style=padding:1px 4px;font-weight:bold;text-align:right;font-size:13px;>'+s.total+' 支</td></tr></table></div>';
-        const sentCol = getSentColor(s.loc);
-const m = L.circleMarker([s.lat, s.lng], { radius: 10, color: sentCol, fillColor: sentCol, fillOpacity: 0.8, weight: 2 });
-        m.bindPopup(ph, { maxWidth: 300 });
-        const sd = sentData[s.loc] || { pos: 0, neu: 0, neg: 0 };
-        // Count posts that match THIS specific station (location + operator)
+        const sentCol = getSentColor(s.loc, s.provider);
+        const m = L.circleMarker([s.lat, s.lng], { radius: 10, color: sentCol, fillColor: sentCol, fillOpacity: 0.8, weight: 2 });
+                m.bindPopup(ph, { maxWidth: 300 });
+                const sk = s.loc + '|' + s.provider;
+                const sd = sentData[sk] || { pos: 0, neu: 0, neg: 0 };
+                // Count posts that match THIS specific station (location + operator)
         const matchCount = rawDataset.filter(item => 
             item.location.includes(s.loc) && item.operator.includes(s.provider)
         ).length;
@@ -1193,17 +1194,19 @@ except Exception as e:
     output_html = output_html.replace("__CHARGER_DATA__", "[]")
     print(f"⚠️ Charger data not loaded: {e}")
 
-# ── Inject sentiment data for station map (always works) ──
+# ── Inject sentiment data for station map (per station, not per location) ──
 sent_data = {}
 for rec in data["records"]:
     loc = rec.get('location', '')
     sent = rec.get('sentiment', '')
-    if loc and sent and sent in ('Positive', 'Negative', 'Neutral'):
-        if loc not in sent_data:
-            sent_data[loc] = {'pos': 0, 'neu': 0, 'neg': 0}
-        if sent == 'Positive': sent_data[loc]['pos'] += 1
-        elif sent == 'Negative': sent_data[loc]['neg'] += 1
-        else: sent_data[loc]['neu'] += 1
+    op = rec.get('operator', '')
+    if loc and op and sent and sent in ('Positive', 'Negative', 'Neutral'):
+        key = f"{loc}|{op}"
+        if key not in sent_data:
+            sent_data[key] = {'pos': 0, 'neu': 0, 'neg': 0}
+        if sent == 'Positive': sent_data[key]['pos'] += 1
+        elif sent == 'Negative': sent_data[key]['neg'] += 1
+        else: sent_data[key]['neu'] += 1
 json_sent = json.dumps(sent_data, ensure_ascii=False)
 output_html = output_html.replace("__SENTIMENT_DATA__", json_sent)
 
