@@ -618,7 +618,8 @@ const m = L.circleMarker([s.lat, s.lng], { radius: 10, color: sentCol, fillColor
         const matchCount = rawDataset.filter(item => 
             item.location.includes(s.loc) && item.operator.includes(s.provider)
         ).length;
-        m.bindTooltip('<b>'+s.label+'</b><br>'+s.provider+' · '+s.total+' 支槍'+(matchCount > 0 ? ' 📄 '+matchCount+' posts' : ' 📭 暫無posts'), { direction: 'top' });
+        const sentText = sd.pos+sd.neu+sd.neg > 0 ? ' 🟢'+sd.pos+' 🟡'+sd.neu+' 🔴'+sd.neg : '';
+        m.bindTooltip('<b>'+s.label+'</b><br>'+s.provider+' · '+s.total+' 支槍'+sentText+(matchCount > 0 ? ' 📄 '+matchCount+' posts' : ' 📭 無posts'), { direction: 'top' });
         m.on('click', function() { 
             clickedStation = s.label; clickedStationLoc = s.loc; clickedStationProv = s.provider;
             clickedLocation = null; 
