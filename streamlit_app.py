@@ -572,7 +572,14 @@ function getSentColor(loc) {
     return '#f59e0b';
 }
 
-function filterByDistrict() { const v = document.getElementById('districtFilter').value; clickedStation = null; clickedLocation = v === 'all' ? null : v; currentPage = 1; renderDashboard(); updateStationMap(v); }
+function filterByDistrict() { 
+    const v = document.getElementById('districtFilter').value; 
+    clickedStation = null; clickedStationLoc = null; clickedStationProv = null;
+    clickedLocation = v === 'all' ? null : v; 
+    currentPage = 1; 
+    renderDashboard(); 
+    updateStationMap(v); 
+}
 
 let stMap = null, stMarkers = null;
 function initStationMap() {
