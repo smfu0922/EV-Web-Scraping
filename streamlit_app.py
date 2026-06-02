@@ -1145,6 +1145,8 @@ try:
     output_html = output_html.replace("__SENTIMENT_DATA__", json_sent)
 except Exception as e:
     output_html = output_html.replace("__CHARGER_DATA__", "[]")
+    output_html = output_html.replace("__SENTIMENT_DATA__", "{}")
+    print(f"⚠️ Charger data not loaded: {e}")
 
 # ── Render HTML in Streamlit (100% full page) ──
 st.components.v1.html(output_html, height=99999, scrolling=True)
