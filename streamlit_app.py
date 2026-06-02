@@ -668,7 +668,7 @@ const chargerColors = {
             endInput.addEventListener('change', () => { currentPage = 1; renderDashboard(); });
             // Also re-render charger map when filters change
             const origRD = renderDashboard;
-            renderDashboard = function() { origRD(); if (typeof updateChargerMap === 'function') setTimeout(updateChargerMap, 100); };
+            renderDashboard = function() { origRD(); if (typeof updateStationMap === 'function') setTimeout(function() { updateStationMap(document.getElementById('districtFilter').value); }, 100); };
             initStationMap();
             initMonthSelector();
             renderOperatorCheckboxes();
