@@ -911,10 +911,8 @@ const chargerColors = {
             updateOperatorSentimentChart(currentlyFilteredData);
             // Station marker click → timeline shows only that operator
             if (clickedStation) {
-                // Map station provider names to matrix keys
-                const opMap = {'Shell':'Shell Recharge','XECO':'Xecohk','三號電站':'三號電站'};
-                const matrixKey = opMap[clickedStationProv] || clickedStationProv;
-                updateOperatorsTimelineChart([matrixKey]);
+                // Station provider names now match matrix keys after CSV normalization
+                updateOperatorsTimelineChart([clickedStationProv]);
             } else {
                 updateOperatorsTimelineChart(selectedOperators);
             }
