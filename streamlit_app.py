@@ -374,8 +374,8 @@ html_template = """<!DOCTYPE html>
         </div>
     </div>
 
-    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
-        <div class="glass-card p-5 rounded-2xl flex flex-col justify-between h-[360px]">
+    <div class="grid grid-cols-1 lg:grid-cols-4 gap-6 mb-6">
+        <div class="glass-card p-5 rounded-2xl flex flex-col justify-between h-[360px] lg:col-span-1">
             <div>
                 <h2 class="text-sm font-bold text-gray-700 mb-2 border-l-4 border-[#5e5843] pl-2">🎛️ 智能數據控制台</h2>
                 <div class="mb-2">
@@ -398,14 +398,23 @@ html_template = """<!DOCTYPE html>
                         </div>
                     </div>
                 </div>
+                <div class="mb-2">
+                    <label class="block text-[11px] font-semibold text-gray-500 mb-0.5">📍 篩選地區</label>
+                    <select id="districtFilter" onchange="filterByDistrict()" class="w-full bg-[#faf9f5] text-[11px] text-gray-700 rounded-md p-1.5 border border-[#dcd7bc] focus:outline-none">
+                        <option value="all">全部地區</option>
+                    </select>
+                </div>
             </div>
             <button onclick="resetAllFilters()" class="w-full py-1.5 bg-gray-200 hover:bg-gray-300 text-gray-700 text-[11px] font-bold rounded-lg transition-all border border-gray-300 shadow-sm">🔄 一鍵重置所有篩選</button>
         </div>
 
-        <div class="glass-card p-5 rounded-2xl lg:col-span-2 flex flex-col justify-between h-[360px]">
-            <div class="mb-1">
-                <h2 class="text-sm font-bold text-gray-700">🗺️ 全港營辦商地理分佈</h2>
-                <div id="mapFilterStatus" class="text-[10px] bg-[#8c7e5a]/10 text-[#8c7e5a] px-2 py-0.5 rounded-md mt-1 hidden items-center gap-1 font-medium w-fit">
+        <div class="glass-card p-5 rounded-2xl lg:col-span-3 flex flex-col justify-between h-[360px]">
+            <div class="mb-1 flex justify-between items-center">
+                <div>
+                    <h2 class="text-sm font-bold text-gray-700">🗺️ 全港充電站分佈 (Carpark Hero)</h2>
+                    <div id="stationSummary" class="text-[10px] text-gray-500 mt-0.5"></div>
+                </div>
+                <div id="mapFilterStatus" class="text-[10px] bg-[#8c7e5a]/10 text-[#8c7e5a] px-2 py-0.5 rounded-md items-center gap-1 font-medium w-fit" style="display:none">
                     <span id="currentMapLoc"></span>
                     <button onclick="clearMapFilter()" class="text-gray-400 hover:text-red-500 font-bold">×</button>
                 </div>
@@ -427,14 +436,7 @@ html_template = """<!DOCTYPE html>
         </div>
     </div>
 
-    <!-- 🗺️ CHARGER STATION MAP (from Carpark Hero data) -->
-    <div class="glass-card p-5 rounded-2xl mb-6">
-        <h2 class="text-sm font-bold text-gray-700 mb-3 border-l-4 border-[#5e5843] pl-2">⚡ 全港充電站分佈 (Carpark Hero 數據)</h2>
-        <div id="chargerMap" style="width: 100%; height: 380px;" class="rounded-xl border border-[#dcd7bc]"></div>
-        <div id="chargerMapLegend" class="flex flex-wrap gap-3 mt-2 text-[10px] text-gray-500"></div>
-    </div>
-
-    <div class="glass-card p-5 rounded-2xl mb-6">
+<div class="glass-card p-5 rounded-2xl mb-6">
         <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-4 border-b border-gray-100 pb-3">
             <div>
                 <h2 class="text-sm font-bold text-gray-700 border-l-4 border-[#8c7e5a] pl-2">📋 本月話題總覽</h2>
@@ -534,6 +536,48 @@ html_template = """<!DOCTYPE html>
         const operatorsMonthlyMatrix = __OPERATORS_MONTHLY_MATRIX__;
         const absoluteMinDate = '__MIN_DATE__';
         const absoluteMaxDate = '__MAX_DATE__';
+const stationData = [{"label": "三號電站 新蒲崗", "loc": "新蒲崗", "name": "三號電站新蒲崗善美工業大廈充電站", "address": "九龍新蒲崗八達街", "provider": "三號電站", "dc": 10, "ac": 0, "tesla": 0, "total": 10, "lat": 22.3376, "lng": 114.19938}, {"label": "三號電站 元朗", "loc": "元朗", "name": "三號電站元朗公庵路充電站", "address": "新界元朗公庵路", "provider": "三號電站", "dc": 28, "ac": 0, "tesla": 0, "total": 28, "lat": 22.44664, "lng": 114.02419}, {"label": "三號電站 八鄉", "loc": "元朗", "name": "三號電站八鄉橫台山梁屋村充電站", "address": "新界元朗八鄉", "provider": "三號電站", "dc": 8, "ac": 2, "tesla": 0, "total": 10, "lat": 22.44505, "lng": 114.02265}, {"label": "三號電站 柴灣角", "loc": "荃灣", "name": "榮興工業大廈停車場 Wing Hing Industrial Building", "address": "新界荃灣柴灣角街83-93號", "provider": "三號電站", "dc": 8, "ac": 0, "tesla": 0, "total": 8, "lat": 22.36804, "lng": 114.11433}, {"label": "三號電站 葵涌馮敬", "loc": "葵涌", "name": "三號電站葵涌馮敬工業大廈充電站", "address": "新界葵涌藍田街", "provider": "三號電站", "dc": 6, "ac": 0, "tesla": 0, "total": 6, "lat": 22.36084, "lng": 114.12737}, {"label": "三號電站 錦上路", "loc": "元朗", "name": "三號電站錦上園藝充電站", "address": "新界元朗錦上路", "provider": "三號電站", "dc": 6, "ac": 0, "tesla": 0, "total": 6, "lat": 22.44372, "lng": 114.02414}, {"label": "大昌行 九龍灣", "loc": "九龍灣", "name": "九龍灣大昌行充電站", "address": "九龍九龍灣啓祥道20號", "provider": "大昌行", "dc": 30, "ac": 0, "tesla": 0, "total": 30, "lat": 22.31996, "lng": 114.21394}, {"label": "The Point 銅鑼灣世貿", "loc": "銅鑼灣", "name": "世界貿易中心停車場 World Trade Center WTC wwwtc", "address": "香港銅鑼灣告士打道280號", "provider": "The Point", "dc": 0, "ac": 3, "tesla": 0, "total": 3, "lat": 22.2838, "lng": 114.18448}, {"label": "The Point YOHO Plus", "loc": "元朗", "name": "YOHO PLUS 加點停車場 (交通廣場 Transport Plaza)", "address": "新界元朗鳳翔路2-6號", "provider": "The Point", "dc": 0, "ac": 0, "tesla": 0, "total": 0, "lat": 22.44687, "lng": 114.01946}, {"label": "The Point Mikiki", "loc": "新蒲崗", "name": "Mikiki 停車場 (譽·港灣 The Latitude)", "address": "九龍新蒲崗太子道東638號", "provider": "The Point", "dc": 4, "ac": 3, "tesla": 4, "total": 11, "lat": 22.33898, "lng": 114.19607}, {"label": "The Point V Walk", "loc": "深水埗", "name": "V Walk 停車場 (匯璽 Cullinan West)", "address": "九龍深水埗深旺道28號", "provider": "The Point", "dc": 4, "ac": 0, "tesla": 3, "total": 7, "lat": 22.32673, "lng": 114.16131}, {"label": "The Point APM", "loc": "觀塘", "name": "APM 停車場 (創紀之城5期)", "address": "九龍觀塘觀塘道418號", "provider": "The Point", "dc": 4, "ac": 7, "tesla": 0, "total": 11, "lat": 22.31068, "lng": 114.2229}, {"label": "Well Done Charge 鴻圖道", "loc": "觀塘", "name": "Well Done Charge 觀塘鴻圖道6號快充站 (樂居工業大廈)", "address": "九龍觀塘鴻圖道6號", "provider": "Well Done Charge", "dc": 10, "ac": 0, "tesla": 0, "total": 10, "lat": 22.30919, "lng": 114.2252}, {"label": "Well Done Charge 偉業街", "loc": "觀塘", "name": "Well Done Charge 觀塘偉業街149號快充站 (彩虹工業大廈)", "address": "九龍觀塘偉業街149號", "provider": "Well Done Charge", "dc": 8, "ac": 0, "tesla": 0, "total": 8, "lat": 22.30942, "lng": 114.22595}, {"label": "A1W 新蒲崗", "loc": "新蒲崗", "name": "A1W Charge 新蒲崗佳力工業大廈精英充電站", "address": "九龍新蒲崗大有街33號", "provider": "A1W", "dc": 2, "ac": 0, "tesla": 0, "total": 2, "lat": 22.33403, "lng": 114.19938}, {"label": "A1W 元朗", "loc": "元朗", "name": "A1W Charge 元朗塘坊村230號精英充電站", "address": "元朗屏山塘坊村", "provider": "A1W", "dc": 3, "ac": 0, "tesla": 0, "total": 3, "lat": 22.44381, "lng": 114.02407}, {"label": "XECO 青衣", "loc": "青衣", "name": "XECO 青衣海暉貨櫃場快充站", "address": "新界青衣青高路", "provider": "XECO", "dc": 19, "ac": 0, "tesla": 0, "total": 19, "lat": 22.35554, "lng": 114.1095}, {"label": "XECO 錦上路115號", "loc": "元朗", "name": "XECO 錦上路115號快充站", "address": "新界元朗錦田錦上路", "provider": "XECO", "dc": 2, "ac": 0, "tesla": 0, "total": 2, "lat": 22.44436, "lng": 114.02179}, {"label": "XECO 石湖塘洗車屋", "loc": "元朗", "name": "XECO 石湖塘洗車屋快充站", "address": "新界元朗錦田錦上路", "provider": "XECO", "dc": 0, "ac": 1, "tesla": 0, "total": 1, "lat": 22.44568, "lng": 114.02379}, {"label": "XECO 洪水橋田心村", "loc": "屯門", "name": "XECO 洪水橋田心村快充站", "address": "新界洪水橋", "provider": "XECO", "dc": 12, "ac": 0, "tesla": 0, "total": 12, "lat": 22.39687, "lng": 113.97569}, {"label": "Crazy Charge 灰窰角", "loc": "荃灣", "name": "Crazy Charge 荃灣灰窰角街18號充電站 (富源工業大廈)", "address": "荃灣灰窰角街18號", "provider": "Crazy Charge", "dc": 0, "ac": 0, "tesla": 0, "total": 0, "lat": 22.36875, "lng": 114.11336}, {"label": "Shell Recharge 機場", "loc": "東涌", "name": "Shell蜆殼赤鱲角機場(貨運中心)油電站", "address": "新界赤鱲角觀景路及赤鱲角南路交界", "provider": "Shell", "dc": 2, "ac": 2, "tesla": 0, "total": 4, "lat": 22.2876, "lng": 113.94048}, {"label": "Tesla 大角咀", "loc": "大角咀", "name": "One Bedford Place 停車場 (大角咀必發道)", "address": "九龍大角咀必發道100號", "provider": "Tesla", "dc": 0, "ac": 12, "tesla": 3, "total": 15, "lat": 22.31917, "lng": 114.16142}, {"label": "三號電站 元朗東成里", "loc": "元朗", "name": "三號電站元朗東成里新港快充站", "address": "新界元朗東成里路", "provider": "三號電站", "dc": 8, "ac": 0, "tesla": 0, "total": 8, "lat": 22.44734, "lng": 114.02091}];
+const locList = [...new Set(stationData.map(s => s.loc))].sort();
+const distSel = document.getElementById('districtFilter');
+locList.forEach(l => { const o = document.createElement('option'); o.value = l; o.textContent = l; distSel.appendChild(o); });
+const tg = stationData.reduce((s, st) => s + st.total, 0);
+document.getElementById('stationSummary').textContent = `⚡ ${stationData.length} 站 | 🔌 ${tg} 槍 | 📍 ${locList.length} 區`;
+
+function filterByDistrict() { updateStationMap(document.getElementById('districtFilter').value); }
+
+let stMap = null, stMarkers = null;
+function initStationMap() {
+    stMap = L.map('liveMap', { zoomControl: false }).setView([22.3193, 114.1694], 11);
+    L.control.zoom({ position: 'bottomright' }).addTo(stMap);
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png').addTo(stMap);
+    stMarkers = L.layerGroup().addTo(stMap);
+    updateStationMap('all');
+}
+function updateStationMap(fl) {
+    if (!stMarkers) return; stMarkers.clearLayers();
+    const fd = fl === 'all' ? stationData : stationData.filter(s => s.loc === fl);
+    if (fl !== 'all' && fd.length) {
+        const lt = fd.map(s => s.lat), ln = fd.map(s => s.lng);
+        stMap.setView([(Math.min(...lt)+Math.max(...lt))/2, (Math.min(...ln)+Math.max(...ln))/2], 13);
+    }
+    let posCount = 0, neuCount = 0, negCount = 0;
+    fd.forEach(s => {
+        const ph = '<div style=font-size:11px;max-width:260px;font-family:sans-serif;><b style=font-size:13px;>🔌 '+s.label+'</b><div style=margin:4px 0;border-top:1px solid #ddd;></div>'+
+            '<table style=width:100%;border-collapse:collapse;>'+
+            '<tr><td style=padding:1px 4px;color:#666;>營辦商</td><td style=padding:1px 4px;font-weight:bold;text-align:right;>'+s.provider+'</td></tr>'+
+            '<tr><td style=padding:1px 4px;color:#666;>地址</td><td style=padding:1px 4px;text-align:right;>'+s.address+'</td></tr>'+
+            '<tr><td style=padding:1px 4px;color:#666;>DC 快充</td><td style=padding:1px 4px;font-weight:bold;text-align:right;>'+s.dc+' 支</td></tr>'+
+            '<tr><td style=padding:1px 4px;color:#666;>AC 中慢充</td><td style=padding:1px 4px;font-weight:bold;text-align:right;>'+s.ac+' 支</td></tr>'+
+            (s.tesla ? '<tr><td style=padding:1px 4px;color:#666;>Tesla 超充</td><td style=padding:1px 4px;font-weight:bold;text-align:right;>'+s.tesla+' 支</td></tr>' : '')+
+            '<tr><td style=padding:1px 4px;color:#666;>總槍數</td><td style=padding:1px 4px;font-weight:bold;text-align:right;font-size:13px;>'+s.total+' 支</td></tr></table></div>';
+        const m = L.circleMarker([s.lat, s.lng], { radius: 10, color: '#5e5843', fillColor: '#5e5843', fillOpacity: 0.8, weight: 2 });
+        m.bindPopup(ph, { maxWidth: 300 });
+        m.bindTooltip('<b>'+s.label+'</b><br>'+s.provider+' · '+s.total+' 支槍', { direction: 'top' });
+        m.on('click', function() { clickedLocation = s.loc; document.getElementById('mapFilterStatus').style.display = 'flex'; document.getElementById('currentMapLoc').textContent = '📍 '+s.loc; currentPage = 1; renderDashboard(); });
+        stMarkers.addLayer(m);
+    });
+}
+
 const chargerStationData = __CHARGER_DATA__;
 const chargerColors = {
     'Tesla': '#cc0000', 'SHKP The Point': '#8B4513', '三號電站': '#2d6662',
@@ -589,8 +633,7 @@ const chargerColors = {
             // Also re-render charger map when filters change
             const origRD = renderDashboard;
             renderDashboard = function() { origRD(); if (typeof updateChargerMap === 'function') setTimeout(updateChargerMap, 100); };
-            initLeafletMap();
-            initChargerMap();
+            initStationMap();
             initMonthSelector();
             renderOperatorCheckboxes();
             renderDashboard();
@@ -954,8 +997,8 @@ const chargerColors = {
 
         function changePage(direction) { currentPage += direction; updateTablePage(); }
     
-let chargerMap = null;
-let chargerMarkers = null;
+
+
 
 function initChargerMap() {
     chargerMap = L.map('chargerMap', { zoomControl: false }).setView([22.3193, 114.1694], 11);
