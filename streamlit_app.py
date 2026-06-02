@@ -484,7 +484,7 @@ html_template = """<!DOCTYPE html>
         </div>
         <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 mt-4">
             <div class="bg-[#faf9f5] p-3 rounded-xl border border-[#dcd7bc]">
-                <span class="text-[11px] font-bold text-gray-500 uppercase tracking-wider block mb-1">📊 主題滾動趨勢</span>
+                <span class="text-[11px] font-bold text-gray-500 uppercase tracking-wider block mb-1">📊 主題滾動趨勢 <span id="themeTrendDate" class="text-[10px] font-normal lowercase"></span></span>
                 <div id="themeTrendChart" style="width: 100%; height: 110px;"></div>
             </div>
             <div class="bg-[#faf9f5] p-3 rounded-xl border border-[#dcd7bc]">
@@ -793,7 +793,8 @@ const chargerColors = {
             const currIdx = allMonthsSorted.indexOf(currentMonth);
             const startIdx = Math.max(0, currIdx - 5);
             const rollingMonths = allMonthsSorted.slice(startIdx, currIdx + 1);
-            document.getElementById('trendChartTitle').textContent = `📈 情緒滾動趨勢 (${rollingMonths[0]}~${currentMonth})`;
+            document.getElementById('trendChartTitle').textContent = `📈 情緒滾動趨勢 (${rollingMonths[0]} ~ ${currentMonth})`;
+            document.getElementById('themeTrendDate').textContent = `(${rollingMonths[0]} ~ ${currentMonth})`;
             let lineXData = [], posData = [], neuData = [], negData = [];
             rollingMonths.forEach(m => {
                 lineXData.push(m);
@@ -844,6 +845,12 @@ const chargerColors = {
         function updateOperatorsTimelineChart(activeOperators) {
             const seriesList = [];
             let targetOps = activeOperators.length > 0 ? activeOperators : Object.keys(operatorsMonthlyMatrix).slice(0, 10);
+            // If operator checkboxes are active, use those instead of auto top-10
+            if (selectedOperators && selectedOperators.length > 0) {
+                // Map selected operator names to matrix keys (handle different naming)
+                targetOps = selectedOperators.filter(op => operatorsMonthlyMatrix[op]);
+                if (targetOps.length === 0) targetOps = activeOperators.length > 0 ? activeOperators : Object.keys(operatorsMonthlyMatrix).slice(0, 10);
+            }
             targetOps.forEach(op => {
                 if (!operatorsMonthlyMatrix[op]) return;
                 const dataArr = [];
