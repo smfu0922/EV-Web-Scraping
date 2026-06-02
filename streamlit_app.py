@@ -614,8 +614,11 @@ function updateStationMap(fl) {
 const m = L.circleMarker([s.lat, s.lng], { radius: 10, color: sentCol, fillColor: sentCol, fillOpacity: 0.8, weight: 2 });
         m.bindPopup(ph, { maxWidth: 300 });
         const sd = sentData[s.loc] || { pos: 0, neu: 0, neg: 0 };
-const hasSent = sentData[s.loc];
-m.bindTooltip('<b>'+s.label+'</b><br>'+s.provider+' · '+s.total+' 支槍'+(hasSent ? '<br>🟢'+sd.pos+' 🟡'+sd.neu+' 🔴'+sd.neg : '<br>📭 暫無帖文'), { direction: 'top' });
+        // Count posts that match THIS specific station (location + operator)
+        const matchCount = rawDataset.filter(item => 
+            item.location.includes(s.loc) && item.operator.includes(s.provider)
+        ).length;
+        m.bindTooltip('<b>'+s.label+'</b><br>'+s.provider+' · '+s.total+' 支槍'+(matchCount > 0 ? ' 📄 '+matchCount+' posts' : ' 📭 暫無posts'), { direction: 'top' });
         m.on('click', function() { 
             clickedStation = s.label; clickedStationLoc = s.loc; clickedStationProv = s.provider;
             clickedLocation = null; 
