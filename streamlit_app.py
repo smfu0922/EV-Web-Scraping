@@ -875,7 +875,7 @@ const chargerColors = {
         function handleOperatorChange() { selectedOperators = Array.from(document.querySelectorAll('.op-checkbox')).filter(cb => cb.checked).map(cb => cb.value); currentPage = 1; renderDashboard(); if (typeof updateStationMap === 'function') updateStationMap(document.getElementById('districtFilter').value); }
         function clearOperatorSelection() { document.querySelectorAll('.op-checkbox').forEach(cb => cb.checked = false); selectedOperators = []; currentPage = 1; renderDashboard(); if (typeof updateStationMap === 'function') updateStationMap(document.getElementById('districtFilter').value); }
         function resetAllFilters() { clearOperatorSelection(); clickedTheme = null; clickedLocation = null; clickedStation = null; clickedStationLoc = null; clickedStationProv = null; document.getElementById('districtFilter').value = 'all'; currentPage = 1; renderDashboard(); }
-        function clearMapFilter() { clickedLocation = null; clickedStation = null; clickedStationLoc = null; clickedStationProv = null; document.getElementById('districtFilter').value = 'all'; currentPage = 1; renderDashboard(); }
+        function clearMapFilter() { clickedLocation = null; clickedStation = null; clickedStationLoc = null; clickedStationProv = null; document.getElementById('districtFilter').value = 'all'; currentPage = 1; renderDashboard(); if (typeof updateStationMap === 'function') updateStationMap('all'); }
 
         function renderDashboard() {
             const startDate = document.getElementById('dateStart').value || absoluteMinDate;
@@ -883,6 +883,7 @@ const chargerColors = {
             currentlyFilteredData = rawDataset.filter(item => {
                 let matchLoc = true;
                 if (clickedLocation) { matchLoc = item.location.includes(clickedLocation); }
+                if (clickedStation) { matchLoc = item.location.includes(clickedStationLoc) && item.operator.includes(clickedStationProv); }
                 return ((selectedOperators.length === 0) ? true : selectedOperators.includes(item.operator)) &&
                        (clickedTheme ? (item.theme === clickedTheme) : true) &&
                        matchLoc && (item.time >= startDate && item.time <= endDate);
