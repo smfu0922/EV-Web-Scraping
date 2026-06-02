@@ -554,13 +554,15 @@ html_template = """<!DOCTYPE html>
         const absoluteMinDate = '__MIN_DATE__';
         const absoluteMaxDate = '__MAX_DATE__';
 const stationData = __STATION_DATA__;
-const locList = [...new Set(stationData.map(s => s.loc))].sort();
+const sentData = __SENTIMENT_DATA__;
+// Only show stations at locations WITH posts
+const validLocs = new Set(Object.keys(sentData));
+const filteredStations = stationData.filter(s => validLocs.has(s.loc));
+const locList = [...new Set(filteredStations.map(s => s.loc))].sort();
 const distSel = document.getElementById('districtFilter');
 locList.forEach(l => { const o = document.createElement('option'); o.value = l; o.textContent = l; distSel.appendChild(o); });
-const tg = stationData.reduce((s, st) => s + st.total, 0);
-// Sentiment counts per location from CSV
-const sentData = __SENTIMENT_DATA__;
-document.getElementById('stationSummary').textContent = `⚡ ${stationData.length} 站 | 🔌 ${tg} 槍 | 📍 ${locList.length} 區`;
+const tg = filteredStations.reduce((s, st) => s + st.total, 0);
+document.getElementById('stationSummary').textContent = `⚡ ${filteredStations.length} 站 | 🔌 ${tg} 槍 | 📍 ${locList.length} 區`;
 
 function getSentColor(loc) {
     const d = sentData[loc];
@@ -582,7 +584,7 @@ function initStationMap() {
 }
 function updateStationMap(fl) {
     if (!stMarkers) return; stMarkers.clearLayers();
-    let fd = fl === 'all' ? stationData : stationData.filter(s => s.loc === fl);
+    let fd = fl === 'all' ? filteredStations : filteredStations.filter(s => s.loc === fl);
     // Also filter by selected operators
     if (selectedOperators && selectedOperators.length > 0) {
         fd = fd.filter(s => selectedOperators.includes(s.provider));
