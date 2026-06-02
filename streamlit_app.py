@@ -564,7 +564,7 @@ document.getElementById('stationSummary').textContent = `⚡ ${stationData.lengt
 
 function getSentColor(loc) {
     const d = sentData[loc];
-    if (!d) return '#999';
+    if (!d) return '#5e5843';
     if (d.pos > d.neg && d.pos > d.neu) return '#22c55e';
     if (d.neg > d.pos && d.neg > d.neu) return '#ef4444';
     return '#f59e0b';
@@ -582,7 +582,11 @@ function initStationMap() {
 }
 function updateStationMap(fl) {
     if (!stMarkers) return; stMarkers.clearLayers();
-    const fd = fl === 'all' ? stationData : stationData.filter(s => s.loc === fl);
+    let fd = fl === 'all' ? stationData : stationData.filter(s => s.loc === fl);
+    // Also filter by selected operators
+    if (selectedOperators && selectedOperators.length > 0) {
+        fd = fd.filter(s => selectedOperators.includes(s.provider));
+    }
     if (fl !== 'all' && fd.length) {
         const lt = fd.map(s => s.lat), ln = fd.map(s => s.lng);
         stMap.setView([(Math.min(...lt)+Math.max(...lt))/2, (Math.min(...ln)+Math.max(...ln))/2], 13);
@@ -601,7 +605,8 @@ function updateStationMap(fl) {
 const m = L.circleMarker([s.lat, s.lng], { radius: 10, color: sentCol, fillColor: sentCol, fillOpacity: 0.8, weight: 2 });
         m.bindPopup(ph, { maxWidth: 300 });
         const sd = sentData[s.loc] || { pos: 0, neu: 0, neg: 0 };
-m.bindTooltip('<b>'+s.label+'</b><br>'+s.provider+' · '+s.total+' 支槍<br>🟢'+sd.pos+' 🟡'+sd.neu+' 🔴'+sd.neg, { direction: 'top' });
+const hasSent = sentData[s.loc];
+m.bindTooltip('<b>'+s.label+'</b><br>'+s.provider+' · '+s.total+' 支槍'+(hasSent ? '<br>🟢'+sd.pos+' 🟡'+sd.neu+' 🔴'+sd.neg : '<br>📭 暫無帖文'), { direction: 'top' });
         m.on('click', function() { clickedLocation = s.loc; document.getElementById('mapFilterStatus').style.display = 'flex'; document.getElementById('currentMapLoc').textContent = '📍 '+s.loc; currentPage = 1; renderDashboard(); });
         stMarkers.addLayer(m);
     });
