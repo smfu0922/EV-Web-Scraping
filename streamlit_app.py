@@ -619,19 +619,10 @@ m.bindTooltip('<b>'+s.label+'</b><br>'+s.provider+' · '+s.total+' 支槍'+(hasS
         m.on('click', function() { 
             clickedStation = s.label; clickedStationLoc = s.loc; clickedStationProv = s.provider;
             clickedLocation = null; 
-            // Auto-check the corresponding operator checkbox
-            const opMap = {'Shell':'Shell Recharge','XECO':'Xecohk','Crazy Charge':''};
-            const cbId = opMap[s.provider] || s.provider;
-            const cb = document.getElementById('op_'+cbId);
-            if (cb) { cb.checked = true; selectedOperators = [cbId]; }
-            else { selectedOperators = []; }
-            // Also update other checkboxes visually
-            document.querySelectorAll('.op-checkbox').forEach(c => { if(c !== cb) c.checked = false; });
             document.getElementById('mapFilterStatus').style.display = 'flex'; 
             document.getElementById('currentMapLoc').textContent = '🔌 '+s.provider+' · '+s.loc;
             document.getElementById('districtFilter').value = 'all';
             currentPage = 1; renderDashboard(); 
-            if (typeof updateStationMap === 'function') updateStationMap('all'); 
         });
         stMarkers.addLayer(m);
     });
