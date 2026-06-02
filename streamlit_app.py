@@ -612,15 +612,11 @@ function updateStationMap(fl) {
             '<tr><td style=padding:1px 4px;color:#666;>總槍數</td><td style=padding:1px 4px;font-weight:bold;text-align:right;font-size:13px;>'+s.total+' 支</td></tr></table></div>';
         const sentCol = getSentColor(s.loc, s.provider);
         const m = L.circleMarker([s.lat, s.lng], { radius: 10, color: sentCol, fillColor: sentCol, fillOpacity: 0.8, weight: 2 });
-                m.bindPopup(ph, { maxWidth: 300 });
-                const sk = s.loc + '|' + s.provider;
-                const sd = sentData[sk] || { pos: 0, neu: 0, neg: 0 };
-                // Count posts that match THIS specific station (location + operator)
-        const matchCount = rawDataset.filter(item => 
-            item.location.includes(s.loc) && item.operator.includes(s.provider)
-        ).length;
+        m.bindPopup(ph, { maxWidth: 300 });
+        const sk = s.loc + '|' + s.provider;
+        const sd = sentData[sk] || { pos: 0, neu: 0, neg: 0 };
         const sentText = sd.pos+sd.neu+sd.neg > 0 ? ' 🟢'+sd.pos+' 🟡'+sd.neu+' 🔴'+sd.neg : '';
-        m.bindTooltip('<b>'+s.label+'</b><br>'+s.provider+' · '+s.total+' 支槍'+sentText+(matchCount > 0 ? ' 📄 '+matchCount+' posts' : ' 📭 無posts'), { direction: 'top' });
+        m.bindTooltip('<b>'+s.label+'</b><br>'+s.provider+' · '+s.total+' 支槍'+sentText, { direction: 'top' });
         m.on('click', function() { 
             clickedStation = s.label; clickedStationLoc = s.loc; clickedStationProv = s.provider;
             clickedLocation = null; 
