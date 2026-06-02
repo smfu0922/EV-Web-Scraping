@@ -443,12 +443,12 @@ html_template = """<!DOCTYPE html>
     <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
         <div class="glass-card p-5 rounded-2xl">
             <h2 class="text-sm font-bold text-gray-700 mb-1 border-l-4 border-blue-600 pl-2">📊 歷史大局觀 | 全港充電營辦商全期社群聲量趨勢矩陣</h2>
-            <p class="text-[11px] text-gray-400 mb-2">已剔除 Unknown。支援控制台勾選多選與點擊折線雙向聯動變更曲線！</p>
+            <p class="text-[11px] text-gray-400 mb-2">支援控制台勾選多選與點擊折線雙向聯動變更曲線！</p>
             <div id="operatorsFullTimelineChart" style="width: 100%; height: 280px;"></div>
         </div>
         <div class="glass-card p-5 rounded-2xl">
             <h2 class="text-sm font-bold text-gray-700 mb-1 border-l-4 border-emerald-600 pl-2">🎭 品牌與輿情 | 各充電營辦商情緒比例堆疊分佈圖</h2>
-            <p class="text-[11px] text-gray-400 mb-2">已剔除 Unknown。動態響應全域過濾，滑鼠懸停可觀看絕對發文筆數與精準佔比。</p>
+            <p class="text-[11px] text-gray-400 mb-2">動態響應全域過濾，滑鼠懸停可觀看絕對發文筆數與精準佔比。</p>
             <div id="operatorSentimentStackChart" style="width: 100%; height: 280px;"></div>
         </div>
     </div>
@@ -484,7 +484,7 @@ html_template = """<!DOCTYPE html>
         </div>
         <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 mt-4">
             <div class="bg-[#faf9f5] p-3 rounded-xl border border-[#dcd7bc]">
-                <span class="text-[11px] font-bold text-gray-500 uppercase tracking-wider block mb-1">📊 主題滾動趨勢 (近6月)</span>
+                <span class="text-[11px] font-bold text-gray-500 uppercase tracking-wider block mb-1">📊 主題滾動趨勢</span>
                 <div id="themeTrendChart" style="width: 100%; height: 110px;"></div>
             </div>
             <div class="bg-[#faf9f5] p-3 rounded-xl border border-[#dcd7bc]">
@@ -572,7 +572,7 @@ function getSentColor(loc) {
     return '#f59e0b';
 }
 
-function filterByDistrict() { updateStationMap(document.getElementById('districtFilter').value); }
+function filterByDistrict() { const v = document.getElementById('districtFilter').value; clickedStation = null; clickedLocation = v === 'all' ? null : v; currentPage = 1; renderDashboard(); updateStationMap(v); }
 
 let stMap = null, stMarkers = null;
 function initStationMap() {
