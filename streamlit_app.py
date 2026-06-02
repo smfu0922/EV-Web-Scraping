@@ -616,7 +616,8 @@ function updateStationMap(fl) {
         const sk = s.loc + '|' + s.provider;
         const sd = sentData[sk] || { pos: 0, neu: 0, neg: 0 };
         const sentText = sd.pos+sd.neu+sd.neg > 0 ? ' 🟢'+sd.pos+' 🟡'+sd.neu+' 🔴'+sd.neg : '';
-        m.bindTooltip('<b>'+s.label+'</b><br>'+s.provider+' · '+s.total+' 支槍'+sentText, { direction: 'top' });
+        const totalPC = rawDataset.filter(i => i.location.includes(s.loc) && i.operator.includes(s.provider)).length;
+        m.bindTooltip('<b>'+s.label+'</b><br>'+s.provider+' · '+s.total+' 支槍'+sentText+' 📄'+totalPC, { direction: 'top' });
         m.on('click', function() { 
             clickedStation = s.label; clickedStationLoc = s.loc; clickedStationProv = s.provider;
             clickedLocation = null; 
