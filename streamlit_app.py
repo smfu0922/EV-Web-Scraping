@@ -541,7 +541,17 @@ const locList = [...new Set(stationData.map(s => s.loc))].sort();
 const distSel = document.getElementById('districtFilter');
 locList.forEach(l => { const o = document.createElement('option'); o.value = l; o.textContent = l; distSel.appendChild(o); });
 const tg = stationData.reduce((s, st) => s + st.total, 0);
+// Sentiment counts per location from CSV
+const sentData = __SENTIMENT_DATA__;
 document.getElementById('stationSummary').textContent = `⚡ ${stationData.length} 站 | 🔌 ${tg} 槍 | 📍 ${locList.length} 區`;
+
+function getSentColor(loc) {
+    const d = sentData[loc];
+    if (!d) return '#999';
+    if (d.pos > d.neg && d.pos > d.neu) return '#22c55e';
+    if (d.neg > d.pos && d.neg > d.neu) return '#ef4444';
+    return '#f59e0b';
+}
 
 function filterByDistrict() { updateStationMap(document.getElementById('districtFilter').value); }
 
@@ -570,9 +580,11 @@ function updateStationMap(fl) {
             '<tr><td style=padding:1px 4px;color:#666;>AC 中慢充</td><td style=padding:1px 4px;font-weight:bold;text-align:right;>'+s.ac+' 支</td></tr>'+
             (s.tesla ? '<tr><td style=padding:1px 4px;color:#666;>Tesla 超充</td><td style=padding:1px 4px;font-weight:bold;text-align:right;>'+s.tesla+' 支</td></tr>' : '')+
             '<tr><td style=padding:1px 4px;color:#666;>總槍數</td><td style=padding:1px 4px;font-weight:bold;text-align:right;font-size:13px;>'+s.total+' 支</td></tr></table></div>';
-        const m = L.circleMarker([s.lat, s.lng], { radius: 10, color: '#5e5843', fillColor: '#5e5843', fillOpacity: 0.8, weight: 2 });
+        const sentCol = getSentColor(s.loc);
+const m = L.circleMarker([s.lat, s.lng], { radius: 10, color: sentCol, fillColor: sentCol, fillOpacity: 0.8, weight: 2 });
         m.bindPopup(ph, { maxWidth: 300 });
-        m.bindTooltip('<b>'+s.label+'</b><br>'+s.provider+' · '+s.total+' 支槍', { direction: 'top' });
+        const sd = sentData[s.loc] || { pos: 0, neu: 0, neg: 0 };
+m.bindTooltip('<b>'+s.label+'</b><br>'+s.provider+' · '+s.total+' 支槍<br>🟢'+sd.pos+' 🟡'+sd.neu+' 🔴'+sd.neg, { direction: 'top' });
         m.on('click', function() { clickedLocation = s.loc; document.getElementById('mapFilterStatus').style.display = 'flex'; document.getElementById('currentMapLoc').textContent = '📍 '+s.loc; currentPage = 1; renderDashboard(); });
         stMarkers.addLayer(m);
     });
@@ -1117,6 +1129,20 @@ try:
     
     json_charger = json.dumps(charger_stations, ensure_ascii=False)
     output_html = output_html.replace("__CHARGER_DATA__", json_charger)
+    
+    # ── Inject sentiment data for station map ──
+    sent_data = {}
+    for rec in data["records"]:
+        loc = rec.get('location', '')
+        sent = rec.get('sentiment', '')
+        if loc and sent and sent in ('Positive', 'Negative', 'Neutral'):
+            if loc not in sent_data:
+                sent_data[loc] = {'pos': 0, 'neu': 0, 'neg': 0}
+            if sent == 'Positive': sent_data[loc]['pos'] += 1
+            elif sent == 'Negative': sent_data[loc]['neg'] += 1
+            else: sent_data[loc]['neu'] += 1
+    json_sent = json.dumps(sent_data, ensure_ascii=False)
+    output_html = output_html.replace("__SENTIMENT_DATA__", json_sent)
 except Exception as e:
     output_html = output_html.replace("__CHARGER_DATA__", "[]")
 
