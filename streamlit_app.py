@@ -845,8 +845,10 @@ const chargerColors = {
         function updateOperatorsTimelineChart(activeOperators) {
             const seriesList = [];
             let targetOps = activeOperators.length > 0 ? activeOperators : Object.keys(operatorsMonthlyMatrix).slice(0, 10);
-            // If operator checkboxes are active, use those instead of auto top-10
-            if (selectedOperators && selectedOperators.length > 0) {
+            // If station marker clicked, use that operator (overrides checkboxes)
+            if (clickedStation) {
+                targetOps = activeOperators;
+            } else if (selectedOperators && selectedOperators.length > 0) {
                 // Map selected operator names to matrix keys (handle different naming)
                 targetOps = selectedOperators.filter(op => operatorsMonthlyMatrix[op]);
                 if (targetOps.length === 0) targetOps = activeOperators.length > 0 ? activeOperators : Object.keys(operatorsMonthlyMatrix).slice(0, 10);
