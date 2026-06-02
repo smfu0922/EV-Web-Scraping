@@ -613,7 +613,7 @@ m.bindTooltip('<b>'+s.label+'</b><br>'+s.provider+' · '+s.total+' 支槍'+(hasS
     clickedStation = s.label; clickedStationLoc = s.loc; clickedStationProv = s.provider;
     clickedLocation = null; 
     document.getElementById('mapFilterStatus').style.display = 'flex'; 
-    document.getElementById('currentMapLoc').textContent = '🔌 '+s.label;
+    document.getElementById('currentMapLoc').textContent = '🔌 '+s.provider+' · '+s.loc;
     document.getElementById('districtFilter').value = 'all';
     currentPage = 1; renderDashboard(); 
 });
@@ -889,7 +889,7 @@ const chargerColors = {
             document.getElementById('statusLocation').textContent = clickedLocation ? `📍 地點: ${clickedLocation}` : "📍 地點: 全部";
             updateConsoleIntelligence(startDate, endDate);
             updateCharts(currentlyFilteredData);
-            updateSandboxMap(currentlyFilteredData);
+            // Station map is updated separately via renderDashboard override
             updateOperatorSentimentChart(currentlyFilteredData);
             updateOperatorsTimelineChart(selectedOperators);
             updateTablePage();
