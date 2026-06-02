@@ -617,13 +617,22 @@ const m = L.circleMarker([s.lat, s.lng], { radius: 10, color: sentCol, fillColor
 const hasSent = sentData[s.loc];
 m.bindTooltip('<b>'+s.label+'</b><br>'+s.provider+' · '+s.total+' 支槍'+(hasSent ? '<br>🟢'+sd.pos+' 🟡'+sd.neu+' 🔴'+sd.neg : '<br>📭 暫無帖文'), { direction: 'top' });
         m.on('click', function() { 
-    clickedStation = s.label; clickedStationLoc = s.loc; clickedStationProv = s.provider;
-    clickedLocation = null; 
-    document.getElementById('mapFilterStatus').style.display = 'flex'; 
-    document.getElementById('currentMapLoc').textContent = '🔌 '+s.provider+' · '+s.loc;
-    document.getElementById('districtFilter').value = 'all';
-    currentPage = 1; renderDashboard(); 
-});
+            clickedStation = s.label; clickedStationLoc = s.loc; clickedStationProv = s.provider;
+            clickedLocation = null; 
+            // Auto-check the corresponding operator checkbox
+            const opMap = {'Shell':'Shell Recharge','XECO':'Xecohk','Crazy Charge':''};
+            const cbId = opMap[s.provider] || s.provider;
+            const cb = document.getElementById('op_'+cbId);
+            if (cb) { cb.checked = true; selectedOperators = [cbId]; }
+            else { selectedOperators = []; }
+            // Also update other checkboxes visually
+            document.querySelectorAll('.op-checkbox').forEach(c => { if(c !== cb) c.checked = false; });
+            document.getElementById('mapFilterStatus').style.display = 'flex'; 
+            document.getElementById('currentMapLoc').textContent = '🔌 '+s.provider+' · '+s.loc;
+            document.getElementById('districtFilter').value = 'all';
+            currentPage = 1; renderDashboard(); 
+            if (typeof updateStationMap === 'function') updateStationMap('all'); 
+        });
         stMarkers.addLayer(m);
     });
 }
@@ -893,7 +902,7 @@ const chargerColors = {
                 let matchLoc = true;
                 if (clickedLocation) { matchLoc = item.location.includes(clickedLocation); }
                 if (clickedStation) { matchLoc = item.location.includes(clickedStationLoc) && item.operator.includes(clickedStationProv); }
-                return ((selectedOperators.length === 0) ? true : selectedOperators.includes(item.operator)) &&
+                return ((selectedOperators.length === 0) ? true : selectedOperators.some(op => item.operator.includes(op))) &&
                        (clickedTheme ? (item.theme === clickedTheme) : true) &&
                        matchLoc && (item.time >= startDate && item.time <= endDate);
             });
