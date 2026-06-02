@@ -34,6 +34,7 @@ st.markdown("""
 
 # ── CSV URL (raw GitHub) ──
 CSV_URL = "https://raw.githubusercontent.com/smfu0922/EV-Web-Scraping/main/EV_Scraping_Merge.csv"
+STATIONS_URL = "https://raw.githubusercontent.com/smfu0922/EV-Web-Scraping/main/EV_Charging_Stations.csv"
 
 @st.cache_data(ttl=60)
 def load_and_process():
@@ -315,6 +316,22 @@ def load_and_process():
 # ── Load data ──
 data = load_and_process()
 
+@st.cache_data(ttl=300)
+def load_stations():
+    df = pd.read_csv(STATIONS_URL, encoding='utf-8-sig')
+    stations = []
+    for _, row in df.iterrows():
+        stations.append({
+            'label': row['label'], 'loc': row['location'], 'name': row['name'],
+            'address': row['address'], 'provider': row['provider'],
+            'dc': int(row['dc']), 'ac': int(row['ac']), 'tesla': int(row['tesla']),
+            'total': int(row['total']), 'lat': float(row['lat']), 'lng': float(row['lng'])
+        })
+    return stations
+
+station_data = load_stations()
+json_stations = json.dumps(station_data, ensure_ascii=False)
+
 json_dataset = json.dumps(data["records"], ensure_ascii=False)
 json_operators = json.dumps(data["operators"], ensure_ascii=False)
 json_monthly_insights = json.dumps(data["monthly_insights"], ensure_ascii=False)
@@ -536,7 +553,7 @@ html_template = """<!DOCTYPE html>
         const operatorsMonthlyMatrix = __OPERATORS_MONTHLY_MATRIX__;
         const absoluteMinDate = '__MIN_DATE__';
         const absoluteMaxDate = '__MAX_DATE__';
-const stationData = [{"label": "三號電站 新蒲崗", "loc": "新蒲崗", "name": "三號電站新蒲崗善美工業大廈充電站", "address": "九龍新蒲崗八達街", "provider": "三號電站", "dc": 10, "ac": 0, "tesla": 0, "total": 10, "lat": 22.3376, "lng": 114.19938}, {"label": "三號電站 元朗", "loc": "元朗", "name": "三號電站元朗公庵路充電站", "address": "新界元朗公庵路", "provider": "三號電站", "dc": 28, "ac": 0, "tesla": 0, "total": 28, "lat": 22.44664, "lng": 114.02419}, {"label": "三號電站 八鄉", "loc": "元朗", "name": "三號電站八鄉橫台山梁屋村充電站", "address": "新界元朗八鄉", "provider": "三號電站", "dc": 8, "ac": 2, "tesla": 0, "total": 10, "lat": 22.44505, "lng": 114.02265}, {"label": "三號電站 柴灣角", "loc": "荃灣", "name": "榮興工業大廈停車場 Wing Hing Industrial Building", "address": "新界荃灣柴灣角街83-93號", "provider": "三號電站", "dc": 8, "ac": 0, "tesla": 0, "total": 8, "lat": 22.36804, "lng": 114.11433}, {"label": "三號電站 葵涌馮敬", "loc": "葵涌", "name": "三號電站葵涌馮敬工業大廈充電站", "address": "新界葵涌藍田街", "provider": "三號電站", "dc": 6, "ac": 0, "tesla": 0, "total": 6, "lat": 22.36084, "lng": 114.12737}, {"label": "三號電站 錦上路", "loc": "元朗", "name": "三號電站錦上園藝充電站", "address": "新界元朗錦上路", "provider": "三號電站", "dc": 6, "ac": 0, "tesla": 0, "total": 6, "lat": 22.44372, "lng": 114.02414}, {"label": "大昌行 九龍灣", "loc": "九龍灣", "name": "九龍灣大昌行充電站", "address": "九龍九龍灣啓祥道20號", "provider": "大昌行", "dc": 30, "ac": 0, "tesla": 0, "total": 30, "lat": 22.31996, "lng": 114.21394}, {"label": "The Point 銅鑼灣世貿", "loc": "銅鑼灣", "name": "世界貿易中心停車場 World Trade Center WTC wwwtc", "address": "香港銅鑼灣告士打道280號", "provider": "The Point", "dc": 0, "ac": 3, "tesla": 0, "total": 3, "lat": 22.2838, "lng": 114.18448}, {"label": "The Point YOHO Plus", "loc": "元朗", "name": "YOHO PLUS 加點停車場 (交通廣場 Transport Plaza)", "address": "新界元朗鳳翔路2-6號", "provider": "The Point", "dc": 0, "ac": 0, "tesla": 0, "total": 0, "lat": 22.44687, "lng": 114.01946}, {"label": "The Point Mikiki", "loc": "新蒲崗", "name": "Mikiki 停車場 (譽·港灣 The Latitude)", "address": "九龍新蒲崗太子道東638號", "provider": "The Point", "dc": 4, "ac": 3, "tesla": 4, "total": 11, "lat": 22.33898, "lng": 114.19607}, {"label": "The Point V Walk", "loc": "深水埗", "name": "V Walk 停車場 (匯璽 Cullinan West)", "address": "九龍深水埗深旺道28號", "provider": "The Point", "dc": 4, "ac": 0, "tesla": 3, "total": 7, "lat": 22.32673, "lng": 114.16131}, {"label": "The Point APM", "loc": "觀塘", "name": "APM 停車場 (創紀之城5期)", "address": "九龍觀塘觀塘道418號", "provider": "The Point", "dc": 4, "ac": 7, "tesla": 0, "total": 11, "lat": 22.31068, "lng": 114.2229}, {"label": "Well Done Charge 鴻圖道", "loc": "觀塘", "name": "Well Done Charge 觀塘鴻圖道6號快充站 (樂居工業大廈)", "address": "九龍觀塘鴻圖道6號", "provider": "Well Done Charge", "dc": 10, "ac": 0, "tesla": 0, "total": 10, "lat": 22.30919, "lng": 114.2252}, {"label": "Well Done Charge 偉業街", "loc": "觀塘", "name": "Well Done Charge 觀塘偉業街149號快充站 (彩虹工業大廈)", "address": "九龍觀塘偉業街149號", "provider": "Well Done Charge", "dc": 8, "ac": 0, "tesla": 0, "total": 8, "lat": 22.30942, "lng": 114.22595}, {"label": "A1W 新蒲崗", "loc": "新蒲崗", "name": "A1W Charge 新蒲崗佳力工業大廈精英充電站", "address": "九龍新蒲崗大有街33號", "provider": "A1W", "dc": 2, "ac": 0, "tesla": 0, "total": 2, "lat": 22.33403, "lng": 114.19938}, {"label": "A1W 元朗", "loc": "元朗", "name": "A1W Charge 元朗塘坊村230號精英充電站", "address": "元朗屏山塘坊村", "provider": "A1W", "dc": 3, "ac": 0, "tesla": 0, "total": 3, "lat": 22.44381, "lng": 114.02407}, {"label": "XECO 青衣", "loc": "青衣", "name": "XECO 青衣海暉貨櫃場快充站", "address": "新界青衣青高路", "provider": "XECO", "dc": 19, "ac": 0, "tesla": 0, "total": 19, "lat": 22.35554, "lng": 114.1095}, {"label": "XECO 錦上路115號", "loc": "元朗", "name": "XECO 錦上路115號快充站", "address": "新界元朗錦田錦上路", "provider": "XECO", "dc": 2, "ac": 0, "tesla": 0, "total": 2, "lat": 22.44436, "lng": 114.02179}, {"label": "XECO 石湖塘洗車屋", "loc": "元朗", "name": "XECO 石湖塘洗車屋快充站", "address": "新界元朗錦田錦上路", "provider": "XECO", "dc": 0, "ac": 1, "tesla": 0, "total": 1, "lat": 22.44568, "lng": 114.02379}, {"label": "XECO 洪水橋田心村", "loc": "屯門", "name": "XECO 洪水橋田心村快充站", "address": "新界洪水橋", "provider": "XECO", "dc": 12, "ac": 0, "tesla": 0, "total": 12, "lat": 22.39687, "lng": 113.97569}, {"label": "Crazy Charge 灰窰角", "loc": "荃灣", "name": "Crazy Charge 荃灣灰窰角街18號充電站 (富源工業大廈)", "address": "荃灣灰窰角街18號", "provider": "Crazy Charge", "dc": 0, "ac": 0, "tesla": 0, "total": 0, "lat": 22.36875, "lng": 114.11336}, {"label": "Shell Recharge 機場", "loc": "東涌", "name": "Shell蜆殼赤鱲角機場(貨運中心)油電站", "address": "新界赤鱲角觀景路及赤鱲角南路交界", "provider": "Shell", "dc": 2, "ac": 2, "tesla": 0, "total": 4, "lat": 22.2876, "lng": 113.94048}, {"label": "Tesla 大角咀", "loc": "大角咀", "name": "One Bedford Place 停車場 (大角咀必發道)", "address": "九龍大角咀必發道100號", "provider": "Tesla", "dc": 0, "ac": 12, "tesla": 3, "total": 15, "lat": 22.31917, "lng": 114.16142}, {"label": "三號電站 元朗東成里", "loc": "元朗", "name": "三號電站元朗東成里新港快充站", "address": "新界元朗東成里路", "provider": "三號電站", "dc": 8, "ac": 0, "tesla": 0, "total": 8, "lat": 22.44734, "lng": 114.02091}];
+const stationData = __STATION_DATA__;
 const locList = [...new Set(stationData.map(s => s.loc))].sort();
 const distSel = document.getElementById('districtFilter');
 locList.forEach(l => { const o = document.createElement('option'); o.value = l; o.textContent = l; distSel.appendChild(o); });
@@ -1090,6 +1107,7 @@ output_html = output_html.replace("__ALL_MONTHS__", json_all_months)
 output_html = output_html.replace("__OPERATORS_MONTHLY_MATRIX__", json_operators_monthly_matrix)
 output_html = output_html.replace("__MIN_DATE__", min_date)
 output_html = output_html.replace("__MAX_DATE__", max_date)
+output_html = output_html.replace("__STATION_DATA__", json_stations)
 
 # ── Inject charger station data ──
 import pandas as pd
@@ -1130,23 +1148,23 @@ try:
     json_charger = json.dumps(charger_stations, ensure_ascii=False)
     output_html = output_html.replace("__CHARGER_DATA__", json_charger)
     
-    # ── Inject sentiment data for station map ──
-    sent_data = {}
-    for rec in data["records"]:
-        loc = rec.get('location', '')
-        sent = rec.get('sentiment', '')
-        if loc and sent and sent in ('Positive', 'Negative', 'Neutral'):
-            if loc not in sent_data:
-                sent_data[loc] = {'pos': 0, 'neu': 0, 'neg': 0}
-            if sent == 'Positive': sent_data[loc]['pos'] += 1
-            elif sent == 'Negative': sent_data[loc]['neg'] += 1
-            else: sent_data[loc]['neu'] += 1
-    json_sent = json.dumps(sent_data, ensure_ascii=False)
-    output_html = output_html.replace("__SENTIMENT_DATA__", json_sent)
 except Exception as e:
     output_html = output_html.replace("__CHARGER_DATA__", "[]")
-    output_html = output_html.replace("__SENTIMENT_DATA__", "{}")
     print(f"⚠️ Charger data not loaded: {e}")
+
+# ── Inject sentiment data for station map (always works) ──
+sent_data = {}
+for rec in data["records"]:
+    loc = rec.get('location', '')
+    sent = rec.get('sentiment', '')
+    if loc and sent and sent in ('Positive', 'Negative', 'Neutral'):
+        if loc not in sent_data:
+            sent_data[loc] = {'pos': 0, 'neu': 0, 'neg': 0}
+        if sent == 'Positive': sent_data[loc]['pos'] += 1
+        elif sent == 'Negative': sent_data[loc]['neg'] += 1
+        else: sent_data[loc]['neu'] += 1
+json_sent = json.dumps(sent_data, ensure_ascii=False)
+output_html = output_html.replace("__SENTIMENT_DATA__", json_sent)
 
 # ── Render HTML in Streamlit (100% full page) ──
 st.components.v1.html(output_html, height=99999, scrolling=True)
