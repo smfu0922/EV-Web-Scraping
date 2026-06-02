@@ -609,7 +609,14 @@ const m = L.circleMarker([s.lat, s.lng], { radius: 10, color: sentCol, fillColor
         const sd = sentData[s.loc] || { pos: 0, neu: 0, neg: 0 };
 const hasSent = sentData[s.loc];
 m.bindTooltip('<b>'+s.label+'</b><br>'+s.provider+' · '+s.total+' 支槍'+(hasSent ? '<br>🟢'+sd.pos+' 🟡'+sd.neu+' 🔴'+sd.neg : '<br>📭 暫無帖文'), { direction: 'top' });
-        m.on('click', function() { clickedLocation = s.loc; document.getElementById('mapFilterStatus').style.display = 'flex'; document.getElementById('currentMapLoc').textContent = '📍 '+s.loc; currentPage = 1; renderDashboard(); });
+        m.on('click', function() { 
+    clickedStation = s.label; clickedStationLoc = s.loc; clickedStationProv = s.provider;
+    clickedLocation = null; 
+    document.getElementById('mapFilterStatus').style.display = 'flex'; 
+    document.getElementById('currentMapLoc').textContent = '🔌 '+s.label;
+    document.getElementById('districtFilter').value = 'all';
+    currentPage = 1; renderDashboard(); 
+});
         stMarkers.addLayer(m);
     });
 }
@@ -648,7 +655,7 @@ const chargerColors = {
             "九龍塘": [22.3370, 114.1760], "土瓜灣": [22.3160, 114.1900], "南昌": [22.3260, 114.1550]
         };
 
-        let selectedOperators = []; let clickedTheme = null; let clickedLocation = null;
+        let selectedOperators = []; let clickedTheme = null; let clickedLocation = null; let clickedStation = null; let clickedStationLoc = null; let clickedStationProv = null;
         let currentPage = 1; const pageSize = 20; let currentlyFilteredData = [];
 
         let map = null; let markerGroup = null;
@@ -862,8 +869,8 @@ const chargerColors = {
 
         function handleOperatorChange() { selectedOperators = Array.from(document.querySelectorAll('.op-checkbox')).filter(cb => cb.checked).map(cb => cb.value); currentPage = 1; renderDashboard(); }
         function clearOperatorSelection() { document.querySelectorAll('.op-checkbox').forEach(cb => cb.checked = false); selectedOperators = []; currentPage = 1; renderDashboard(); }
-        function resetAllFilters() { clearOperatorSelection(); clickedTheme = null; clickedLocation = null; document.getElementById('dateStart').value = absoluteMinDate; document.getElementById('dateEnd').value = absoluteMaxDate; currentPage = 1; renderDashboard(); }
-        function clearMapFilter() { clickedLocation = null; currentPage = 1; renderDashboard(); }
+        function resetAllFilters() { clearOperatorSelection(); clickedTheme = null; clickedLocation = null; clickedStation = null; clickedStationLoc = null; clickedStationProv = null; document.getElementById('districtFilter').value = 'all'; currentPage = 1; renderDashboard(); }
+        function clearMapFilter() { clickedLocation = null; clickedStation = null; clickedStationLoc = null; clickedStationProv = null; document.getElementById('districtFilter').value = 'all'; currentPage = 1; renderDashboard(); }
 
         function renderDashboard() {
             const startDate = document.getElementById('dateStart').value || absoluteMinDate;
