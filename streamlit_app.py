@@ -904,7 +904,12 @@ const chargerColors = {
             updateCharts(currentlyFilteredData);
             // Station map is updated separately via renderDashboard override
             updateOperatorSentimentChart(currentlyFilteredData);
-            updateOperatorsTimelineChart(selectedOperators);
+            // Station marker click → timeline shows only that operator
+            if (clickedStation) {
+                updateOperatorsTimelineChart([clickedStationProv]);
+            } else {
+                updateOperatorsTimelineChart(selectedOperators);
+            }
             updateTablePage();
         }
 
